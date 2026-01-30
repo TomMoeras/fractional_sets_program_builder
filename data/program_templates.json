@@ -1,0 +1,381 @@
+{
+  "Basic Splits": {
+    "Upper/Lower 4-Day": {
+      "program_name": "Upper/Lower 4-Day Split",
+      "days": {
+        "Monday": [
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 4, "reps": 8},
+          {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 8},
+          {"exercise": "Standing Military Press", "sets": 3, "reps": 10},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 10},
+          {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12}
+        ],
+        "Tuesday": [
+          {"exercise": "Barbell Squat", "sets": 4, "reps": 6},
+          {"exercise": "Romanian Deadlift", "sets": 4, "reps": 8},
+          {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12},
+          {"exercise": "Standing Calf Raises", "sets": 4, "reps": 15}
+        ],
+        "Thursday": [
+          {"exercise": "Incline Dumbbell Press", "sets": 4, "reps": 10},
+          {"exercise": "Seated Cable Rows", "sets": 4, "reps": 10},
+          {"exercise": "Seated Dumbbell Press", "sets": 3, "reps": 10},
+          {"exercise": "Pullups", "sets": 3, "reps": 8},
+          {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12}
+        ],
+        "Friday": [
+          {"exercise": "Front Barbell Squat", "sets": 4, "reps": 8},
+          {"exercise": "Barbell Deadlift", "sets": 4, "reps": 5},
+          {"exercise": "Barbell Walking Lunge", "sets": 3, "reps": 10},
+          {"exercise": "Glute Ham Raise", "sets": 3, "reps": 10},
+          {"exercise": "Standing Calf Raises", "sets": 4, "reps": 15}
+        ]
+      }
+    },
+    "Push/Pull/Legs 6-Day": {
+      "program_name": "Push/Pull/Legs 6-Day",
+      "days": {
+        "Monday": [
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 4, "reps": 6},
+          {"exercise": "Standing Military Press", "sets": 4, "reps": 8},
+          {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 10},
+          {"exercise": "Side Lateral Raise", "sets": 4, "reps": 12},
+          {"exercise": "Dips - Chest Version", "sets": 3, "reps": 10}
+        ],
+        "Tuesday": [
+          {"exercise": "Barbell Deadlift", "sets": 4, "reps": 5},
+          {"exercise": "Pullups", "sets": 4, "reps": 8},
+          {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 8},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 10},
+          {"exercise": "Barbell Curl", "sets": 3, "reps": 12}
+        ],
+        "Wednesday": [
+          {"exercise": "Barbell Squat", "sets": 4, "reps": 6},
+          {"exercise": "Romanian Deadlift", "sets": 4, "reps": 8},
+          {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12},
+          {"exercise": "Standing Calf Raises", "sets": 4, "reps": 15}
+        ],
+        "Thursday": [
+          {"exercise": "Dumbbell Bench Press", "sets": 4, "reps": 10},
+          {"exercise": "Standing Military Press", "sets": 4, "reps": 8},
+          {"exercise": "Cable Chest Press", "sets": 3, "reps": 12},
+          {"exercise": "Side Lateral Raise", "sets": 4, "reps": 12},
+          {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12}
+        ],
+        "Friday": [
+          {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 8},
+          {"exercise": "Weighted Pull Ups", "sets": 4, "reps": 6},
+          {"exercise": "Seated Cable Rows", "sets": 3, "reps": 10},
+          {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12},
+          {"exercise": "Barbell Curl", "sets": 3, "reps": 12}
+        ],
+        "Saturday": [
+          {"exercise": "Front Barbell Squat", "sets": 4, "reps": 8},
+          {"exercise": "Barbell Hip Thrust", "sets": 4, "reps": 10},
+          {"exercise": "Barbell Walking Lunge", "sets": 3, "reps": 10},
+          {"exercise": "Natural Glute Ham Raise", "sets": 3, "reps": 8},
+          {"exercise": "Standing Calf Raises", "sets": 4, "reps": 15}
+        ]
+      }
+    },
+    "Full Body 3-Day": {
+      "program_name": "Full Body 3-Day",
+      "days": {
+        "Monday": [
+          {"exercise": "Barbell Squat", "sets": 4, "reps": 6},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 4, "reps": 8},
+          {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 8},
+          {"exercise": "Romanian Deadlift", "sets": 3, "reps": 10},
+          {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12}
+        ],
+        "Wednesday": [
+          {"exercise": "Barbell Deadlift", "sets": 4, "reps": 5},
+          {"exercise": "Standing Military Press", "sets": 4, "reps": 8},
+          {"exercise": "Pullups", "sets": 4, "reps": 8},
+          {"exercise": "Split Squat with Dumbbells", "sets": 3, "reps": 10},
+          {"exercise": "Dips - Triceps Version", "sets": 3, "reps": 10}
+        ],
+        "Friday": [
+          {"exercise": "Front Barbell Squat", "sets": 4, "reps": 8},
+          {"exercise": "Incline Dumbbell Press", "sets": 4, "reps": 10},
+          {"exercise": "Seated Cable Rows", "sets": 4, "reps": 10},
+          {"exercise": "Barbell Hip Thrust", "sets": 3, "reps": 12},
+          {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12}
+        ]
+      }
+    }
+  },
+  "MSP3 Bodybuilding": {
+    "MSP3 BB 2-Day": {
+      "program_name": "MSP3 BB 2-Day (4.5-6 sets/muscle)",
+      "days": {
+        "Monday": [
+          {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 8},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 8},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 12},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 12},
+          {"exercise": "Romanian Deadlift", "sets": 3, "reps": 6},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12}
+        ],
+        "Thursday": [
+          {"exercise": "Barbell Squat", "sets": 3, "reps": 6},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
+          {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
+          {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
+          {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
+          {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
+          {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12}
+        ]
+      }
+    },
+    "MSP3 BB 3-Day": {
+      "program_name": "MSP3 BB 3-Day (8-11 sets/muscle avg)",
+      "days": {
+        "Monday": [
+          {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 8},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 8},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 12},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 15},
+          {"exercise": "Hyperextensions (Back Extensions)", "sets": 3, "reps": 10},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12}
+        ],
+        "Wednesday": [
+          {"exercise": "Barbell Squat", "sets": 3, "reps": 6},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
+          {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
+          {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
+          {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
+          {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
+          {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12}
+        ],
+        "Friday": [
+          {"exercise": "Romanian Deadlift", "sets": 3, "reps": 6},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 15},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 8},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 8},
+          {"exercise": "Standing Military Press", "sets": 3, "reps": 12},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 15}
+        ]
+      }
+    },
+    "MSP3 BB 4-Day": {
+      "program_name": "MSP3 BB 4-Day (10.5-15 sets/muscle)",
+      "days": {
+        "Monday": [
+          {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 8},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 8},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 12},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 15},
+          {"exercise": "Hyperextensions (Back Extensions)", "sets": 3, "reps": 10},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12}
+        ],
+        "Tuesday": [
+          {"exercise": "Barbell Squat", "sets": 3, "reps": 6},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
+          {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
+          {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
+          {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
+          {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
+          {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12}
+        ],
+        "Thursday": [
+          {"exercise": "Romanian Deadlift", "sets": 3, "reps": 6},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 15},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 8},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 8},
+          {"exercise": "Standing Military Press", "sets": 3, "reps": 12},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 15}
+        ],
+        "Friday": [
+          {"exercise": "Side Lateral Raise", "sets": 3, "reps": 15},
+          {"exercise": "Straight-Arm Dumbbell Pullover", "sets": 3, "reps": 15},
+          {"exercise": "Incline Dumbbell Curl", "sets": 3, "reps": 15},
+          {"exercise": "Triceps Pushdown", "sets": 3, "reps": 15},
+          {"exercise": "Leg Press", "sets": 3, "reps": 10},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
+          {"exercise": "Leg Extensions", "sets": 3, "reps": 15}
+        ]
+      }
+    },
+    "MSP3 BB 5-Day": {
+      "program_name": "MSP3 BB 5-Day (12-18 sets/muscle)",
+      "days": {
+        "Monday": [
+          {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 8},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 8},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 12},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 15},
+          {"exercise": "Hyperextensions (Back Extensions)", "sets": 3, "reps": 10},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12}
+        ],
+        "Tuesday": [
+          {"exercise": "Barbell Squat", "sets": 3, "reps": 6},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
+          {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
+          {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
+          {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
+          {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
+          {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12}
+        ],
+        "Wednesday": [
+          {"exercise": "Romanian Deadlift", "sets": 3, "reps": 6},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 15},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 8},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 8},
+          {"exercise": "Standing Military Press", "sets": 3, "reps": 12},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 15}
+        ],
+        "Thursday": [
+          {"exercise": "Side Lateral Raise", "sets": 3, "reps": 15},
+          {"exercise": "Straight-Arm Dumbbell Pullover", "sets": 3, "reps": 15},
+          {"exercise": "Incline Dumbbell Curl", "sets": 3, "reps": 15},
+          {"exercise": "Triceps Pushdown", "sets": 3, "reps": 15},
+          {"exercise": "Leg Press", "sets": 3, "reps": 10},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
+          {"exercise": "Leg Extensions", "sets": 3, "reps": 15}
+        ],
+        "Friday": [
+          {"exercise": "Split Squat with Dumbbells", "sets": 3, "reps": 8},
+          {"exercise": "Crunches", "sets": 3, "reps": 15},
+          {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 10},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 10},
+          {"exercise": "Palms-Up Barbell Wrist Curl Over A Bench", "sets": 3, "reps": 12},
+          {"exercise": "Palms-Down Wrist Curl Over A Bench", "sets": 3, "reps": 12},
+          {"exercise": "Barbell Shrug", "sets": 3, "reps": 12}
+        ]
+      }
+    },
+    "MSP3 BB 6-Day": {
+      "program_name": "MSP3 BB 6-Day (15-21 sets/muscle)",
+      "days": {
+        "Monday": [
+          {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 8},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 8},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 12},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 15},
+          {"exercise": "Hyperextensions (Back Extensions)", "sets": 3, "reps": 10},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12}
+        ],
+        "Tuesday": [
+          {"exercise": "Barbell Squat", "sets": 3, "reps": 6},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
+          {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
+          {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
+          {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
+          {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
+          {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12}
+        ],
+        "Wednesday": [
+          {"exercise": "Romanian Deadlift", "sets": 3, "reps": 6},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 15},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 8},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 8},
+          {"exercise": "Standing Military Press", "sets": 3, "reps": 12},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 15}
+        ],
+        "Thursday": [
+          {"exercise": "Side Lateral Raise", "sets": 3, "reps": 15},
+          {"exercise": "Straight-Arm Dumbbell Pullover", "sets": 3, "reps": 15},
+          {"exercise": "Incline Dumbbell Curl", "sets": 3, "reps": 15},
+          {"exercise": "Triceps Pushdown", "sets": 3, "reps": 15},
+          {"exercise": "Leg Press", "sets": 3, "reps": 10},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
+          {"exercise": "Leg Extensions", "sets": 3, "reps": 15}
+        ],
+        "Friday": [
+          {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 10},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 10},
+          {"exercise": "Dips - Chest Version", "sets": 3, "reps": 12},
+          {"exercise": "Crunches", "sets": 3, "reps": 15},
+          {"exercise": "Barbell Hip Thrust", "sets": 3, "reps": 10},
+          {"exercise": "Standing Calf Raises", "sets": 3, "reps": 12},
+          {"exercise": "Lying Leg Curls", "sets": 3, "reps": 10}
+        ],
+        "Saturday": [
+          {"exercise": "Split Squat with Dumbbells", "sets": 3, "reps": 8},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 12},
+          {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 10},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 10},
+          {"exercise": "Palms-Down Wrist Curl Over A Bench", "sets": 3, "reps": 12},
+          {"exercise": "Palms-Up Barbell Wrist Curl Over A Bench", "sets": 3, "reps": 12},
+          {"exercise": "Barbell Shrug", "sets": 3, "reps": 12}
+        ]
+      }
+    }
+  },
+  "MSP3 Powerlifting": {
+    "MSP3 PL 3-Day Volume": {
+      "program_name": "MSP3 PL 3-Day Volume Phase",
+      "days": {
+        "Monday": [
+          {"exercise": "Barbell Squat", "sets": 1, "reps": 1},
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 1, "reps": 1},
+          {"exercise": "Leg Press", "sets": 3, "reps": 8},
+          {"exercise": "Hyperextensions (Back Extensions)", "sets": 4, "reps": 12},
+          {"exercise": "Dumbbell Bench Press", "sets": 4, "reps": 10},
+          {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 12}
+        ],
+        "Wednesday": [
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 1, "reps": 1},
+          {"exercise": "Leg Press", "sets": 3, "reps": 8},
+          {"exercise": "Standing Military Press", "sets": 4, "reps": 10},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 4, "reps": 12},
+          {"exercise": "Cable Crossover", "sets": 4, "reps": 12},
+          {"exercise": "Lying Leg Curls", "sets": 4, "reps": 12}
+        ],
+        "Friday": [
+          {"exercise": "Barbell Deadlift", "sets": 1, "reps": 1},
+          {"exercise": "Romanian Deadlift", "sets": 3, "reps": 8},
+          {"exercise": "Close-Grip Barbell Bench Press", "sets": 4, "reps": 8},
+          {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 12},
+          {"exercise": "Leg Extensions", "sets": 4, "reps": 12},
+          {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 4, "reps": 12}
+        ]
+      }
+    },
+    "MSP3 PL 4-Day Volume": {
+      "program_name": "MSP3 PL 4-Day Volume Phase",
+      "days": {
+        "Monday": [
+          {"exercise": "Barbell Squat", "sets": 1, "reps": 1},
+          {"exercise": "Front Barbell Squat", "sets": 4, "reps": 8},
+          {"exercise": "Hyperextensions (Back Extensions)", "sets": 4, "reps": 12},
+          {"exercise": "Leg Extensions", "sets": 4, "reps": 12},
+          {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 12}
+        ],
+        "Tuesday": [
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 1, "reps": 1},
+          {"exercise": "Close-Grip Barbell Bench Press", "sets": 4, "reps": 8},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 4, "reps": 12},
+          {"exercise": "Cable Crossover", "sets": 4, "reps": 12},
+          {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12}
+        ],
+        "Thursday": [
+          {"exercise": "Barbell Deadlift", "sets": 1, "reps": 1},
+          {"exercise": "Romanian Deadlift", "sets": 3, "reps": 8},
+          {"exercise": "Leg Press", "sets": 3, "reps": 8},
+          {"exercise": "Lying Leg Curls", "sets": 4, "reps": 12},
+          {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 12}
+        ],
+        "Friday": [
+          {"exercise": "Barbell Bench Press - Medium Grip", "sets": 1, "reps": 1},
+          {"exercise": "Standing Military Press", "sets": 4, "reps": 10},
+          {"exercise": "Dumbbell Bench Press", "sets": 4, "reps": 10},
+          {"exercise": "Wide-Grip Lat Pulldown", "sets": 4, "reps": 12},
+          {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12}
+        ]
+      }
+    }
+  }
+}

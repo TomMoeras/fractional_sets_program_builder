@@ -187,7 +187,7 @@ def load_exercise_library():
         Path("free-exercise-db/dist/exercises.json"),
         Path(__file__).parent / "free-exercise-db/dist/exercises.json",
     ]
-    
+
     for path in possible_paths:
         if path.exists():
             try:
@@ -197,11 +197,29 @@ def load_exercise_library():
             except Exception as e:
                 st.error(f"Error loading exercise library: {e}")
                 return []
-    
-    st.error(
-        "Exercise library not found. Please ensure data/exercises.json exists."
-    )
+
+    st.error("Exercise library not found. Please ensure data/exercises.json exists.")
     return []
+
+
+@st.cache_data
+def load_program_templates():
+    """Load program templates from JSON file."""
+    possible_paths = [
+        Path(__file__).parent / "data/program_templates.json",
+        Path("data/program_templates.json"),
+    ]
+    
+    for path in possible_paths:
+        if path.exists():
+            try:
+                with open(path, "r") as f:
+                    return json.load(f)
+            except Exception as e:
+                st.error(f"Error loading templates: {e}")
+                return {}
+    
+    return {}
 
 
 def get_exercise_by_name(exercises, name):
@@ -230,7 +248,7 @@ def get_secondary_muscles(exercise):
 def get_exercise_image_url(image_path, thumbnail=False):
     """
     Get the imagekit.io URL for an exercise image.
-    
+
     Args:
         image_path: The image path from the exercise JSON (e.g., "3_4_Sit-Up/0.jpg")
         thumbnail: If True, return a smaller thumbnail version
@@ -245,28 +263,28 @@ def render_exercise_images(exercise, key_prefix=""):
     images = exercise.get("images", [])
     if not images:
         return
-    
+
     # Initialize image index in session state
     state_key = f"img_idx_{key_prefix}_{exercise.get('id', exercise.get('name'))}"
     if state_key not in st.session_state:
         st.session_state[state_key] = 0
-    
+
     current_idx = st.session_state[state_key]
-    
+
     # Display current image
     col1, col2, col3 = st.columns([1, 4, 1])
-    
+
     with col1:
         if len(images) > 1:
             if st.button("◀", key=f"prev_{state_key}"):
                 st.session_state[state_key] = (current_idx - 1) % len(images)
                 st.rerun()
-    
+
     with col2:
         image_url = get_exercise_image_url(images[current_idx])
         st.image(image_url, use_container_width=True)
         st.caption(f"Image {current_idx + 1} of {len(images)}")
-    
+
     with col3:
         if len(images) > 1:
             if st.button("▶", key=f"next_{state_key}"):
@@ -274,13 +292,15 @@ def render_exercise_images(exercise, key_prefix=""):
                 st.rerun()
 
 
-def render_exercise_details(exercise, show_images=True, show_instructions=True, key_prefix=""):
+def render_exercise_details(
+    exercise, show_images=True, show_instructions=True, key_prefix=""
+):
     """Render exercise details including images and instructions."""
     if not exercise:
         return
-    
+
     st.markdown(f"**{exercise.get('name', 'Unknown')}**")
-    
+
     # Basic info
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -291,16 +311,16 @@ def render_exercise_details(exercise, show_images=True, show_instructions=True, 
         st.caption(f"⚙️ {exercise.get('mechanic', 'N/A') or 'N/A'}")
     with col4:
         st.caption(f"🏋️ {exercise.get('equipment', 'N/A').title()}")
-    
+
     # Secondary muscles
     secondary = get_secondary_muscles(exercise)
     if secondary:
         st.caption(f"Synergists: {', '.join(secondary)}")
-    
+
     # Images
     if show_images and exercise.get("images"):
         render_exercise_images(exercise, key_prefix)
-    
+
     # Instructions
     if show_instructions:
         instructions = exercise.get("instructions", [])
@@ -344,11 +364,11 @@ def initialize_session_state():
             "custom_hypertrophy_target": 15,  # sets/muscle/week
             "custom_strength_target": 4,  # sets/lift/week
         }
-    
+
     # Custom exercises storage
     if "custom_exercises" not in st.session_state:
         st.session_state.custom_exercises = {}  # {source_name: [exercises]}
-    
+
     # Run migration if needed
     migrate_to_multi_week()
 
@@ -361,22 +381,23 @@ def migrate_to_multi_week():
     # Check if we have old format data that needs migration
     old_program = st.session_state.get("program", {})
     has_old_data = any(old_program.get(day, []) for day in DAYS)
-    
+
     # Check if program_weeks is empty (only has default empty week)
     weeks = st.session_state.get("program_weeks", [])
-    weeks_is_empty = (
-        len(weeks) == 1 
-        and not any(weeks[0]["days"].get(day, []) for day in DAYS)
+    weeks_is_empty = len(weeks) == 1 and not any(
+        weeks[0]["days"].get(day, []) for day in DAYS
     )
-    
+
     # Migrate if old program has data but new weeks structure is empty
     if has_old_data and weeks_is_empty:
-        st.session_state.program_weeks = [{
-            "name": "Week 1",
-            "type": "training",
-            "days": {day: list(old_program.get(day, [])) for day in DAYS},
-            "notes": "",
-        }]
+        st.session_state.program_weeks = [
+            {
+                "name": "Week 1",
+                "type": "training",
+                "days": {day: list(old_program.get(day, [])) for day in DAYS},
+                "notes": "",
+            }
+        ]
         # Don't clear old program data yet for safety
 
 
@@ -393,7 +414,7 @@ def sync_legacy_program():
 def export_program_to_json():
     """
     Export the full multi-week program to JSON format.
-    
+
     Returns:
         dict: Program data in exportable format
     """
@@ -409,29 +430,29 @@ def export_program_to_json():
 def import_program_from_json(data):
     """
     Import program from JSON, handling both old and new formats.
-    
+
     Args:
         data: Dict with program data (can be old or new format)
-    
+
     Returns:
         bool: True if import successful
     """
     try:
         # Check format version
         format_version = data.get("format_version", "1.0")
-        
+
         if format_version == "2.0":
             # New multi-week format
             st.session_state.program_name = data.get("name", "Imported Program")
             st.session_state.program_weeks = data.get("weeks", [])
             st.session_state.current_week = 0
-            
+
             # Import optional data
             if "exercise_1rm" in data:
                 st.session_state.exercise_1rm = data["exercise_1rm"]
             if "user_profile" in data:
                 st.session_state.user_profile.update(data["user_profile"])
-            
+
         else:
             # Old single-week format (days directly in data)
             if "days" in data:
@@ -439,23 +460,25 @@ def import_program_from_json(data):
             else:
                 # Even older format where keys are day names directly
                 days_data = {day: data.get(day, []) for day in DAYS}
-            
+
             st.session_state.program_name = data.get("name", "Imported Program")
-            st.session_state.program_weeks = [{
-                "name": "Week 1",
-                "type": "training",
-                "days": days_data,
-                "notes": "",
-            }]
+            st.session_state.program_weeks = [
+                {
+                    "name": "Week 1",
+                    "type": "training",
+                    "days": days_data,
+                    "notes": "",
+                }
+            ]
             st.session_state.current_week = 0
-            
+
             # Also update legacy format
             st.session_state.program = days_data
-            
+
             # Import 1RM if present
             if "exercise_1rm" in data:
                 st.session_state.exercise_1rm = data["exercise_1rm"]
-        
+
         return True
     except Exception as e:
         st.error(f"Error importing program: {e}")
@@ -465,6 +488,7 @@ def import_program_from_json(data):
 # =============================================================================
 # Week Management Functions
 # =============================================================================
+
 
 def get_current_week():
     """Get the current week's data."""
@@ -483,26 +507,29 @@ def get_current_week_days():
 def add_week(copy_from=None, week_type="training", name=None):
     """
     Add a new week to the program.
-    
+
     Args:
         copy_from: Index of week to copy from (None for empty week)
         week_type: Type of week (training, deload, testing, etc.)
         name: Custom name for the week (auto-generated if None)
     """
     week_num = len(st.session_state.program_weeks) + 1
-    
+
     if name is None:
         type_info = WEEK_TYPES.get(week_type, WEEK_TYPES["training"])
         if week_type == "training":
             name = f"Week {week_num}"
         else:
             name = f"Week {week_num} ({type_info['name']})"
-    
+
     if copy_from is not None and 0 <= copy_from < len(st.session_state.program_weeks):
         # Deep copy the days from the source week
         source_days = st.session_state.program_weeks[copy_from]["days"]
-        new_days = {day: [ex.copy() for ex in exercises] for day, exercises in source_days.items()}
-        
+        new_days = {
+            day: [ex.copy() for ex in exercises]
+            for day, exercises in source_days.items()
+        }
+
         # Apply volume modifier if copying to a different week type
         if week_type != "training":
             modifier = WEEK_TYPES.get(week_type, {}).get("volume_modifier", 1.0)
@@ -511,14 +538,14 @@ def add_week(copy_from=None, week_type="training", name=None):
                     ex["sets"] = max(1, int(ex["sets"] * modifier))
     else:
         new_days = {day: [] for day in DAYS}
-    
+
     new_week = {
         "name": name,
         "type": week_type,
         "days": new_days,
         "notes": "",
     }
-    
+
     st.session_state.program_weeks.append(new_week)
     return len(st.session_state.program_weeks) - 1  # Return index of new week
 
@@ -526,23 +553,23 @@ def add_week(copy_from=None, week_type="training", name=None):
 def delete_week(week_index):
     """
     Delete a week from the program.
-    
+
     Args:
         week_index: Index of the week to delete
-    
+
     Returns:
         True if deleted, False if can't delete (last week)
     """
     if len(st.session_state.program_weeks) <= 1:
         return False  # Can't delete the last week
-    
+
     if 0 <= week_index < len(st.session_state.program_weeks):
         st.session_state.program_weeks.pop(week_index)
-        
+
         # Adjust current week if needed
         if st.session_state.current_week >= len(st.session_state.program_weeks):
             st.session_state.current_week = len(st.session_state.program_weeks) - 1
-        
+
         return True
     return False
 
@@ -550,27 +577,30 @@ def delete_week(week_index):
 def copy_week(from_index, to_index=None):
     """
     Copy a week to a new position.
-    
+
     Args:
         from_index: Index of week to copy
         to_index: Index where to insert (None = append at end)
-    
+
     Returns:
         Index of the new week
     """
     if not (0 <= from_index < len(st.session_state.program_weeks)):
         return None
-    
+
     source_week = st.session_state.program_weeks[from_index]
-    
+
     # Deep copy
     new_week = {
         "name": f"{source_week['name']} (Copy)",
         "type": source_week["type"],
-        "days": {day: [ex.copy() for ex in exercises] for day, exercises in source_week["days"].items()},
+        "days": {
+            day: [ex.copy() for ex in exercises]
+            for day, exercises in source_week["days"].items()
+        },
         "notes": source_week.get("notes", ""),
     }
-    
+
     if to_index is None:
         st.session_state.program_weeks.append(new_week)
         return len(st.session_state.program_weeks) - 1
@@ -582,7 +612,7 @@ def copy_week(from_index, to_index=None):
 def set_week_type(week_index, week_type, apply_modifiers=False):
     """
     Change the type of a week.
-    
+
     Args:
         week_index: Index of the week to modify
         week_type: New week type
@@ -590,30 +620,30 @@ def set_week_type(week_index, week_type, apply_modifiers=False):
     """
     if not (0 <= week_index < len(st.session_state.program_weeks)):
         return False
-    
+
     week = st.session_state.program_weeks[week_index]
     old_type = week["type"]
     week["type"] = week_type
-    
+
     if apply_modifiers and old_type != week_type:
         old_modifier = WEEK_TYPES.get(old_type, {}).get("volume_modifier", 1.0)
         new_modifier = WEEK_TYPES.get(week_type, {}).get("volume_modifier", 1.0)
-        
+
         # Calculate relative modifier
         if old_modifier > 0:
             relative_modifier = new_modifier / old_modifier
-            
+
             for day_exercises in week["days"].values():
                 for ex in day_exercises:
                     ex["sets"] = max(1, int(ex["sets"] * relative_modifier))
-    
+
     return True
 
 
 def apply_deload_modifier(week_index, volume_modifier=0.5, sets_modifier=None):
     """
     Apply deload modifications to a week.
-    
+
     Args:
         week_index: Index of the week to modify
         volume_modifier: Multiplier for sets (0.5 = 50% of sets)
@@ -621,14 +651,14 @@ def apply_deload_modifier(week_index, volume_modifier=0.5, sets_modifier=None):
     """
     if not (0 <= week_index < len(st.session_state.program_weeks)):
         return False
-    
+
     modifier = sets_modifier if sets_modifier is not None else volume_modifier
     week = st.session_state.program_weeks[week_index]
-    
+
     for day_exercises in week["days"].values():
         for ex in day_exercises:
             ex["sets"] = max(1, int(ex["sets"] * modifier))
-    
+
     week["type"] = "deload"
     return True
 
@@ -636,7 +666,7 @@ def apply_deload_modifier(week_index, volume_modifier=0.5, sets_modifier=None):
 def copy_day_to_day(source_day, target_day, week_index=None):
     """
     Copy exercises from one day to another within the same week.
-    
+
     Args:
         source_day: Day to copy from (e.g., "Monday")
         target_day: Day to copy to (e.g., "Tuesday")
@@ -644,15 +674,15 @@ def copy_day_to_day(source_day, target_day, week_index=None):
     """
     if week_index is None:
         week_index = st.session_state.current_week
-    
+
     if not (0 <= week_index < len(st.session_state.program_weeks)):
         return False
-    
+
     week = st.session_state.program_weeks[week_index]
-    
+
     if source_day not in week["days"] or target_day not in week["days"]:
         return False
-    
+
     # Deep copy exercises
     week["days"][target_day] = [ex.copy() for ex in week["days"][source_day]]
     return True
@@ -669,13 +699,13 @@ def rename_week(week_index, new_name):
 def reorder_weeks(new_order):
     """
     Reorder weeks based on a new index order.
-    
+
     Args:
         new_order: List of indices representing new order
     """
     if len(new_order) != len(st.session_state.program_weeks):
         return False
-    
+
     try:
         st.session_state.program_weeks = [
             st.session_state.program_weeks[i] for i in new_order
@@ -689,11 +719,12 @@ def reorder_weeks(new_order):
 # Statistics Calculation Functions
 # =============================================================================
 
+
 def calculate_week_stats(week_days, exercises):
     """
     Calculate statistics for a week.
-    
-    Returns dict with total_sets, strength_sets, hypertrophy_sets, 
+
+    Returns dict with total_sets, strength_sets, hypertrophy_sets,
     body_region_splits, movement_splits, and muscle_breakdown.
     """
     stats = {
@@ -708,41 +739,68 @@ def calculate_week_stats(week_days, exercises):
         "legs_sets": 0,
         "muscle_breakdown": defaultdict(float),
     }
-    
+
     # Define muscle group categories
-    upper_muscles = {"chest", "shoulders", "triceps", "biceps", "lats", "traps", "middle back", "forearms"}
-    lower_muscles = {"quadriceps", "hamstrings", "glutes", "calves", "adductors", "abductors"}
+    upper_muscles = {
+        "chest",
+        "shoulders",
+        "triceps",
+        "biceps",
+        "lats",
+        "traps",
+        "middle back",
+        "forearms",
+    }
+    lower_muscles = {
+        "quadriceps",
+        "hamstrings",
+        "glutes",
+        "calves",
+        "adductors",
+        "abductors",
+    }
     core_muscles = {"abdominals", "lower back"}
-    
+
     push_muscles = {"chest", "shoulders", "triceps"}
     pull_muscles = {"lats", "middle back", "biceps", "traps", "forearms"}
-    leg_muscles = {"quadriceps", "hamstrings", "glutes", "calves", "adductors", "abductors"}
-    
+    leg_muscles = {
+        "quadriceps",
+        "hamstrings",
+        "glutes",
+        "calves",
+        "adductors",
+        "abductors",
+    }
+
     for day, day_exercises in week_days.items():
         for entry in day_exercises:
             num_sets = entry.get("sets", 0)
             reps = entry.get("reps", 0)
-            
+
             stats["total_sets"] += num_sets
-            
+
             # Classify by rep range
             if reps <= 6:
                 stats["strength_sets"] += num_sets
             else:
                 stats["hypertrophy_sets"] += num_sets
-            
+
             # Get exercise info for muscle categorization
             exercise = get_exercise_by_name(exercises, entry.get("exercise", ""))
             if exercise:
-                primary_muscles = [m.lower() for m in exercise.get("primaryMuscles", [])]
-                secondary_muscles = [m.lower() for m in exercise.get("secondaryMuscles", [])]
-                
+                primary_muscles = [
+                    m.lower() for m in exercise.get("primaryMuscles", [])
+                ]
+                secondary_muscles = [
+                    m.lower() for m in exercise.get("secondaryMuscles", [])
+                ]
+
                 # Muscle breakdown (fractional counting)
                 for muscle in primary_muscles:
                     stats["muscle_breakdown"][muscle] += num_sets * 1.0
                 for muscle in secondary_muscles:
                     stats["muscle_breakdown"][muscle] += num_sets * 0.5
-                
+
                 # Body region classification
                 for muscle in primary_muscles:
                     if muscle in upper_muscles:
@@ -751,7 +809,7 @@ def calculate_week_stats(week_days, exercises):
                         stats["lower_sets"] += num_sets
                     elif muscle in core_muscles:
                         stats["core_sets"] += num_sets
-                    
+
                     # Movement pattern classification
                     if muscle in push_muscles:
                         stats["push_sets"] += num_sets
@@ -759,14 +817,14 @@ def calculate_week_stats(week_days, exercises):
                         stats["pull_sets"] += num_sets
                     elif muscle in leg_muscles:
                         stats["legs_sets"] += num_sets
-    
+
     return stats
 
 
 def calculate_day_stats(day_exercises, exercises):
     """
     Calculate statistics for a single day.
-    
+
     Returns dict with sets counts and muscle breakdown.
     """
     stats = {
@@ -775,29 +833,31 @@ def calculate_day_stats(day_exercises, exercises):
         "hypertrophy_sets": 0,
         "muscle_breakdown": defaultdict(float),
     }
-    
+
     for entry in day_exercises:
         num_sets = entry.get("sets", 0)
         reps = entry.get("reps", 0)
-        
+
         stats["total_sets"] += num_sets
-        
+
         if reps <= 6:
             stats["strength_sets"] += num_sets
         else:
             stats["hypertrophy_sets"] += num_sets
-        
+
         # Get exercise info
         exercise = get_exercise_by_name(exercises, entry.get("exercise", ""))
         if exercise:
             primary_muscles = [m.lower() for m in exercise.get("primaryMuscles", [])]
-            secondary_muscles = [m.lower() for m in exercise.get("secondaryMuscles", [])]
-            
+            secondary_muscles = [
+                m.lower() for m in exercise.get("secondaryMuscles", [])
+            ]
+
             for muscle in primary_muscles:
                 stats["muscle_breakdown"][muscle] += num_sets * 1.0
             for muscle in secondary_muscles:
                 stats["muscle_breakdown"][muscle] += num_sets * 0.5
-    
+
     return stats
 
 
@@ -805,19 +865,20 @@ def calculate_day_stats(day_exercises, exercises):
 # Enhanced Weekly Editor UI Components
 # =============================================================================
 
+
 def render_week_navigation():
     """Render the week navigation bar with selector, add button, and type badges."""
     weeks = st.session_state.program_weeks
     current_idx = st.session_state.current_week
-    
+
     # Ensure current_idx is valid
     if current_idx >= len(weeks):
         current_idx = len(weeks) - 1
         st.session_state.current_week = current_idx
-    
+
     # Navigation row
     col_selector, col_type, col_actions = st.columns([4, 2, 4])
-    
+
     with col_selector:
         # Week selector dropdown
         week_options = [f"{i+1}. {w['name']}" for i, w in enumerate(weeks)]
@@ -832,7 +893,7 @@ def render_week_navigation():
         if selected != current_idx:
             st.session_state.current_week = selected
             st.rerun()
-    
+
     with col_type:
         # Week type badge
         current_week = weeks[current_idx]
@@ -843,33 +904,35 @@ def render_week_navigation():
             f"border-radius:12px;font-size:0.85em;'>{type_info['name']}</span>",
             unsafe_allow_html=True,
         )
-    
+
     with col_actions:
         # Action buttons
         btn_cols = st.columns([1, 1, 1, 1])
-        
+
         with btn_cols[0]:
             if st.button("➕", help="Add new week", key="add_week_btn"):
                 new_idx = add_week(copy_from=current_idx)
                 st.session_state.current_week = new_idx
                 st.rerun()
-        
+
         with btn_cols[1]:
             if st.button("📋", help="Copy this week", key="copy_week_btn"):
                 copy_week(current_idx)
                 st.rerun()
-        
+
         with btn_cols[2]:
             if len(weeks) > 1:
-                if st.button("🗑️", help="Delete this week", key="delete_week_btn"):
-                    delete_week(current_idx)
-                    st.rerun()
-        
+                with st.popover("🗑️", help="Delete this week"):
+                    st.warning(f"Delete '{current_week['name']}'?")
+                    if st.button("Yes, Delete Week", type="primary", key="confirm_delete_week"):
+                        delete_week(current_idx)
+                        st.rerun()
+
         with btn_cols[3]:
             # Week type selector
             with st.popover("⚙️", help="Week settings"):
                 st.markdown("**Week Settings**")
-                
+
                 # Rename
                 new_name = st.text_input(
                     "Week Name",
@@ -878,10 +941,12 @@ def render_week_navigation():
                 )
                 if new_name != current_week["name"]:
                     rename_week(current_idx, new_name)
-                
+
                 # Type selector
                 type_options = list(WEEK_TYPES.keys())
-                current_type_idx = type_options.index(week_type) if week_type in type_options else 0
+                current_type_idx = (
+                    type_options.index(week_type) if week_type in type_options else 0
+                )
                 new_type = st.selectbox(
                     "Week Type",
                     options=type_options,
@@ -889,13 +954,13 @@ def render_week_navigation():
                     index=current_type_idx,
                     key="week_type_select",
                 )
-                
+
                 if new_type != week_type:
                     apply_mods = st.checkbox("Adjust sets for new type", value=True)
                     if st.button("Apply Type Change"):
                         set_week_type(current_idx, new_type, apply_modifiers=apply_mods)
                         st.rerun()
-                
+
                 # Notes
                 notes = st.text_area(
                     "Week Notes",
@@ -905,24 +970,26 @@ def render_week_navigation():
                 )
                 if notes != current_week.get("notes", ""):
                     st.session_state.program_weeks[current_idx]["notes"] = notes
-    
+
     # Week overview bar
     if len(weeks) > 1:
         st.markdown("**Program Overview:**")
         week_cols = st.columns(min(len(weeks), 8))
         for i, week in enumerate(weeks[:8]):  # Show max 8 weeks
             with week_cols[i]:
-                type_info = WEEK_TYPES.get(week.get("type", "training"), WEEK_TYPES["training"])
+                type_info = WEEK_TYPES.get(
+                    week.get("type", "training"), WEEK_TYPES["training"]
+                )
                 is_current = i == current_idx
                 border = "3px solid #fff" if is_current else "1px solid #555"
-                
+
                 st.markdown(
                     f"""<div style='text-align:center;padding:8px;background-color:{type_info['color']};
                     color:white;border-radius:8px;border:{border};cursor:pointer;font-size:0.8em;'>
                     W{i+1}<br/><small>{type_info['name'][:3]}</small></div>""",
                     unsafe_allow_html=True,
                 )
-        
+
         if len(weeks) > 8:
             st.caption(f"... and {len(weeks) - 8} more weeks")
 
@@ -930,9 +997,9 @@ def render_week_navigation():
 def render_week_stats_panel(week_days, exercises):
     """Render the week statistics panel."""
     stats = calculate_week_stats(week_days, exercises)
-    
+
     st.markdown("### 📊 Week Stats")
-    
+
     # Set totals
     st.markdown("**Set Categories**")
     col1, col2, col3 = st.columns(3)
@@ -942,9 +1009,9 @@ def render_week_stats_panel(week_days, exercises):
         st.metric("Strength", stats["strength_sets"], help="1-6 reps")
     with col3:
         st.metric("Hypertrophy", stats["hypertrophy_sets"], help=">6 reps")
-    
+
     st.markdown("---")
-    
+
     # Body region split
     st.markdown("**Body Region Split**")
     col1, col2, col3 = st.columns(3)
@@ -954,9 +1021,9 @@ def render_week_stats_panel(week_days, exercises):
         st.metric("Lower", stats["lower_sets"])
     with col3:
         st.metric("Core", stats["core_sets"])
-    
+
     st.markdown("---")
-    
+
     # Push/Pull/Legs split
     st.markdown("**Movement Pattern Split**")
     col1, col2, col3 = st.columns(3)
@@ -966,74 +1033,104 @@ def render_week_stats_panel(week_days, exercises):
         st.metric("Pull", stats["pull_sets"])
     with col3:
         st.metric("Legs", stats["legs_sets"])
-    
+
     return stats
 
 
 def render_day_stats_panel(day_exercises, exercises, selected_day):
     """Render the day statistics panel with muscle breakdown."""
     stats = calculate_day_stats(day_exercises, exercises)
-    
+
     st.markdown(f"### 📅 {selected_day} Stats")
-    
+
     # Quick metrics
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Total Sets", stats["total_sets"])
     with col2:
-        rep_type = "Str" if stats["strength_sets"] > stats["hypertrophy_sets"] else "Hyp"
+        rep_type = (
+            "Str" if stats["strength_sets"] > stats["hypertrophy_sets"] else "Hyp"
+        )
         st.metric("Focus", rep_type)
-    
+
     st.markdown("---")
-    
+
     # Muscle breakdown
     st.markdown("**Muscle Breakdown**")
-    
+
     if stats["muscle_breakdown"]:
         # Group muscles by body region
-        upper_muscles = ["shoulders", "chest", "triceps", "biceps", "lats", "traps", "middle back", "forearms"]
+        upper_muscles = [
+            "shoulders",
+            "chest",
+            "triceps",
+            "biceps",
+            "lats",
+            "traps",
+            "middle back",
+            "forearms",
+        ]
         core_muscles = ["abdominals", "lower back"]
-        lower_muscles = ["glutes", "quadriceps", "hamstrings", "calves", "adductors", "abductors"]
-        
+        lower_muscles = [
+            "glutes",
+            "quadriceps",
+            "hamstrings",
+            "calves",
+            "adductors",
+            "abductors",
+        ]
+
         # Upper body
-        upper_data = {m: stats["muscle_breakdown"].get(m, 0) for m in upper_muscles if stats["muscle_breakdown"].get(m, 0) > 0}
+        upper_data = {
+            m: stats["muscle_breakdown"].get(m, 0)
+            for m in upper_muscles
+            if stats["muscle_breakdown"].get(m, 0) > 0
+        }
         if upper_data:
             st.markdown("*Upper Body*")
             for muscle, sets in sorted(upper_data.items(), key=lambda x: -x[1]):
                 st.markdown(f"- {muscle.title()}: **{sets:.1f}** sets")
-        
+
         # Core
-        core_data = {m: stats["muscle_breakdown"].get(m, 0) for m in core_muscles if stats["muscle_breakdown"].get(m, 0) > 0}
+        core_data = {
+            m: stats["muscle_breakdown"].get(m, 0)
+            for m in core_muscles
+            if stats["muscle_breakdown"].get(m, 0) > 0
+        }
         if core_data:
             st.markdown("*Core*")
             for muscle, sets in sorted(core_data.items(), key=lambda x: -x[1]):
                 st.markdown(f"- {muscle.title()}: **{sets:.1f}** sets")
-        
+
         # Lower body
-        lower_data = {m: stats["muscle_breakdown"].get(m, 0) for m in lower_muscles if stats["muscle_breakdown"].get(m, 0) > 0}
+        lower_data = {
+            m: stats["muscle_breakdown"].get(m, 0)
+            for m in lower_muscles
+            if stats["muscle_breakdown"].get(m, 0) > 0
+        }
         if lower_data:
             st.markdown("*Lower Body*")
             for muscle, sets in sorted(lower_data.items(), key=lambda x: -x[1]):
                 st.markdown(f"- {muscle.title()}: **{sets:.1f}** sets")
     else:
         st.caption("No exercises added yet")
-    
+
     return stats
 
 
 def render_body_diagrams(muscle_breakdown):
     """Render the anatomical body diagrams with muscle volume coloring."""
     import streamlit.components.v1 as components
-    
+
     st.markdown("### 🏋️ Muscle Map")
-    
+
     if muscle_breakdown:
         # Aggregate volumes for SVG
         aggregated = aggregate_muscle_volumes(dict(muscle_breakdown))
-        
+
         # Generate and display the combined diagram using components.html for proper SVG rendering
         diagram_html = generate_combined_body_diagram(aggregated)
-        
+
         # Wrap in a full HTML document for proper rendering
         full_html = f"""
         <html>
@@ -1049,9 +1146,9 @@ def render_body_diagrams(muscle_breakdown):
         </body>
         </html>
         """
-        
+
         components.html(full_html, height=350, scrolling=False)
-        
+
         # Legend
         legend_html = get_volume_legend_html()
         st.markdown(legend_html, unsafe_allow_html=True)
@@ -1065,31 +1162,33 @@ def render_mesocycle_graphs(exercises):
     Shows volume progression for mesocycle planning.
     """
     weeks = st.session_state.program_weeks
-    
+
     if len(weeks) < 2:
         st.info("Add more weeks to see mesocycle progression graphs")
         return
-    
+
     st.markdown("### 📈 Mesocycle Overview")
-    
+
     # Calculate stats for each week
     week_data = []
     for i, week in enumerate(weeks):
         stats = calculate_week_stats(week["days"], exercises)
-        week_data.append({
-            "Week": f"W{i+1}",
-            "Week Name": week["name"],
-            "Type": WEEK_TYPES.get(week["type"], WEEK_TYPES["training"])["name"],
-            "Total Sets": stats["total_sets"],
-            "Strength Sets": stats["strength_sets"],
-            "Hypertrophy Sets": stats["hypertrophy_sets"],
-            "Upper Sets": stats["upper_sets"],
-            "Lower Sets": stats["lower_sets"],
-            "Core Sets": stats["core_sets"],
-        })
-    
+        week_data.append(
+            {
+                "Week": f"W{i+1}",
+                "Week Name": week["name"],
+                "Type": WEEK_TYPES.get(week["type"], WEEK_TYPES["training"])["name"],
+                "Total Sets": stats["total_sets"],
+                "Strength Sets": stats["strength_sets"],
+                "Hypertrophy Sets": stats["hypertrophy_sets"],
+                "Upper Sets": stats["upper_sets"],
+                "Lower Sets": stats["lower_sets"],
+                "Core Sets": stats["core_sets"],
+            }
+        )
+
     df = pd.DataFrame(week_data)
-    
+
     # Graph selection
     graph_type = st.radio(
         "Select graph",
@@ -1097,36 +1196,42 @@ def render_mesocycle_graphs(exercises):
         horizontal=True,
         key="mesocycle_graph_type",
     )
-    
+
     if graph_type == "Volume by Week":
         # Line chart showing total volume per week
         fig = go.Figure()
-        
+
         # Add total sets line
-        fig.add_trace(go.Scatter(
-            x=df["Week"],
-            y=df["Total Sets"],
-            mode="lines+markers+text",
-            name="Total Sets",
-            line=dict(width=3, color="#1976D2"),
-            marker=dict(size=10),
-            text=df["Total Sets"],
-            textposition="top center",
-        ))
-        
+        fig.add_trace(
+            go.Scatter(
+                x=df["Week"],
+                y=df["Total Sets"],
+                mode="lines+markers+text",
+                name="Total Sets",
+                line=dict(width=3, color="#1976D2"),
+                marker=dict(size=10),
+                text=df["Total Sets"],
+                textposition="top center",
+            )
+        )
+
         # Color bars by week type
-        colors = [WEEK_TYPES.get(weeks[i]["type"], WEEK_TYPES["training"])["color"] 
-                  for i in range(len(weeks))]
-        
-        fig.add_trace(go.Bar(
-            x=df["Week"],
-            y=df["Total Sets"],
-            marker_color=colors,
-            opacity=0.3,
-            name="Week Type",
-            showlegend=False,
-        ))
-        
+        colors = [
+            WEEK_TYPES.get(weeks[i]["type"], WEEK_TYPES["training"])["color"]
+            for i in range(len(weeks))
+        ]
+
+        fig.add_trace(
+            go.Bar(
+                x=df["Week"],
+                y=df["Total Sets"],
+                marker_color=colors,
+                opacity=0.3,
+                name="Week Type",
+                showlegend=False,
+            )
+        )
+
         fig.update_layout(
             title="Weekly Volume Progression",
             xaxis_title="Week",
@@ -1134,27 +1239,31 @@ def render_mesocycle_graphs(exercises):
             height=300,
             margin=dict(l=20, r=20, t=40, b=20),
         )
-        
+
         st.plotly_chart(fig, use_container_width=True)
-        
+
     elif graph_type == "Set Type Split":
         # Stacked bar chart for strength vs hypertrophy
         fig = go.Figure()
-        
-        fig.add_trace(go.Bar(
-            x=df["Week"],
-            y=df["Strength Sets"],
-            name="Strength (1-6 reps)",
-            marker_color="#FF5722",
-        ))
-        
-        fig.add_trace(go.Bar(
-            x=df["Week"],
-            y=df["Hypertrophy Sets"],
-            name="Hypertrophy (>6 reps)",
-            marker_color="#4CAF50",
-        ))
-        
+
+        fig.add_trace(
+            go.Bar(
+                x=df["Week"],
+                y=df["Strength Sets"],
+                name="Strength (1-6 reps)",
+                marker_color="#FF5722",
+            )
+        )
+
+        fig.add_trace(
+            go.Bar(
+                x=df["Week"],
+                y=df["Hypertrophy Sets"],
+                name="Hypertrophy (>6 reps)",
+                marker_color="#4CAF50",
+            )
+        )
+
         fig.update_layout(
             title="Strength vs Hypertrophy Sets",
             xaxis_title="Week",
@@ -1164,34 +1273,40 @@ def render_mesocycle_graphs(exercises):
             margin=dict(l=20, r=20, t=40, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02),
         )
-        
+
         st.plotly_chart(fig, use_container_width=True)
-        
+
     else:  # Body Region Split
         # Stacked bar chart for body regions
         fig = go.Figure()
-        
-        fig.add_trace(go.Bar(
-            x=df["Week"],
-            y=df["Upper Sets"],
-            name="Upper Body",
-            marker_color="#2196F3",
-        ))
-        
-        fig.add_trace(go.Bar(
-            x=df["Week"],
-            y=df["Lower Sets"],
-            name="Lower Body",
-            marker_color="#9C27B0",
-        ))
-        
-        fig.add_trace(go.Bar(
-            x=df["Week"],
-            y=df["Core Sets"],
-            name="Core",
-            marker_color="#FF9800",
-        ))
-        
+
+        fig.add_trace(
+            go.Bar(
+                x=df["Week"],
+                y=df["Upper Sets"],
+                name="Upper Body",
+                marker_color="#2196F3",
+            )
+        )
+
+        fig.add_trace(
+            go.Bar(
+                x=df["Week"],
+                y=df["Lower Sets"],
+                name="Lower Body",
+                marker_color="#9C27B0",
+            )
+        )
+
+        fig.add_trace(
+            go.Bar(
+                x=df["Week"],
+                y=df["Core Sets"],
+                name="Core",
+                marker_color="#FF9800",
+            )
+        )
+
         fig.update_layout(
             title="Body Region Volume by Week",
             xaxis_title="Week",
@@ -1201,26 +1316,30 @@ def render_mesocycle_graphs(exercises):
             margin=dict(l=20, r=20, t=40, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02),
         )
-        
+
         st.plotly_chart(fig, use_container_width=True)
-    
+
     # Week type legend
     st.caption("Week type colors in Volume chart:")
-    type_legend = " | ".join([
-        f"<span style='color:{info['color']}'>{info['name']}</span>" 
-        for info in WEEK_TYPES.values()
-    ])
+    type_legend = " | ".join(
+        [
+            f"<span style='color:{info['color']}'>{info['name']}</span>"
+            for info in WEEK_TYPES.values()
+        ]
+    )
     st.markdown(type_legend, unsafe_allow_html=True)
 
 
-def render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, name_to_display):
+def render_day_editor_enhanced(
+    day, exercises, exercise_names, display_to_name, name_to_display
+):
     """
     Enhanced day editor with inline copy functionality.
     """
     week_idx = st.session_state.current_week
     week = st.session_state.program_weeks[week_idx]
     day_program = week["days"].get(day, [])
-    
+
     # Inline copy day feature at the top
     with st.expander("📋 Copy from another day", expanded=False):
         other_days = [d for d in DAYS if d != day]
@@ -1236,7 +1355,7 @@ def render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, 
             if st.button("Copy", key=f"copy_btn_{day}"):
                 copy_day_to_day(source_day, day, week_idx)
                 st.rerun()
-    
+
     # Initialize edit state if needed
     if "editing_exercise" not in st.session_state:
         st.session_state.editing_exercise = None
@@ -1246,9 +1365,11 @@ def render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, 
         for i, entry in enumerate(day_program):
             edit_key = f"{day}_{week_idx}_{i}"
             is_editing = st.session_state.editing_exercise == edit_key
-            
+
             # Get display name for current exercise
-            current_display_name = name_to_display.get(entry["exercise"], entry["exercise"])
+            current_display_name = name_to_display.get(
+                entry["exercise"], entry["exercise"]
+            )
 
             if is_editing:
                 # Edit mode
@@ -1261,14 +1382,16 @@ def render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, 
                         current_index = exercise_names.index(current_display_name)
                     except ValueError:
                         current_index = 0
-                    
+
                     selected_display_name = st.selectbox(
                         "Exercise",
                         options=exercise_names,
                         index=current_index,
                         key=f"edit_ex_{edit_key}",
                     )
-                    new_exercise = display_to_name.get(selected_display_name, selected_display_name)
+                    new_exercise = display_to_name.get(
+                        selected_display_name, selected_display_name
+                    )
 
                 with col2:
                     new_sets = st.number_input(
@@ -1308,7 +1431,9 @@ def render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, 
 
             else:
                 # Display mode
-                col1, col2, col3, col4, col_info, col6, col7 = st.columns([3, 1, 1, 1, 0.5, 0.5, 0.5])
+                col1, col2, col3, col4, col_info, col6, col7 = st.columns(
+                    [3, 1, 1, 1, 0.5, 0.5, 0.5]
+                )
 
                 with col1:
                     st.text(entry["exercise"])
@@ -1321,8 +1446,12 @@ def render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, 
                     st.text(rep_type)
                 with col_info:
                     details_key = f"show_details_{edit_key}"
-                    if st.button("ℹ️", key=f"info_{edit_key}", help="View exercise details"):
-                        st.session_state[details_key] = not st.session_state.get(details_key, False)
+                    if st.button(
+                        "ℹ️", key=f"info_{edit_key}", help="View exercise details"
+                    ):
+                        st.session_state[details_key] = not st.session_state.get(
+                            details_key, False
+                        )
                         st.rerun()
                 with col6:
                     if st.button("✏️", key=f"edit_{edit_key}", help="Edit exercise"):
@@ -1339,7 +1468,7 @@ def render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, 
                     target = get_primary_muscle(exercise_info)
                     synergists = get_secondary_muscles(exercise_info)
                     num_sets = entry["sets"]
-                    
+
                     if entry["reps"] > 6:
                         contrib_parts = [f"**{target}**: {num_sets:.0f}"]
                         for syn in synergists[:2]:
@@ -1347,14 +1476,21 @@ def render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, 
                                 contrib_parts.append(f"{syn}: {num_sets * 0.5:.1f}")
                         st.caption(f"   ↳ {' | '.join(contrib_parts)}")
                     else:
-                        st.caption(f"   ↳ {entry['exercise']}: {num_sets:.0f} direct | {target}")
-                
+                        st.caption(
+                            f"   ↳ {entry['exercise']}: {num_sets:.0f} direct | {target}"
+                        )
+
                 # Show details if toggled
                 details_key = f"show_details_{edit_key}"
                 if st.session_state.get(details_key, False):
                     with st.container():
                         st.markdown("---")
-                        render_exercise_details(exercise_info, show_images=True, show_instructions=True, key_prefix=edit_key)
+                        render_exercise_details(
+                            exercise_info,
+                            show_images=True,
+                            show_instructions=True,
+                            key_prefix=edit_key,
+                        )
                         if st.button("Close", key=f"close_{edit_key}"):
                             st.session_state[details_key] = False
                             st.rerun()
@@ -1371,7 +1507,9 @@ def render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, 
             options=exercise_names,
             key=f"select_{day}_{week_idx}",
         )
-        selected_exercise = display_to_name.get(selected_display_name, selected_display_name)
+        selected_exercise = display_to_name.get(
+            selected_display_name, selected_display_name
+        )
 
         # Show exercise info
         if selected_exercise:
@@ -1385,69 +1523,189 @@ def render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, 
 
         col1, col2 = st.columns(2)
         with col1:
-            sets = st.number_input("Sets", min_value=1, max_value=10, value=3, key=f"sets_{day}_{week_idx}")
+            sets = st.number_input(
+                "Sets", min_value=1, max_value=10, value=3, key=f"sets_{day}_{week_idx}"
+            )
         with col2:
-            reps = st.number_input("Reps", min_value=1, max_value=30, value=10, key=f"reps_{day}_{week_idx}")
+            reps = st.number_input(
+                "Reps",
+                min_value=1,
+                max_value=30,
+                value=10,
+                key=f"reps_{day}_{week_idx}",
+            )
+
+        # Real-time fractional set preview
+        if selected_exercise:
+            exercise = get_exercise_by_name(exercises, selected_exercise)
+            if exercise:
+                primary = get_primary_muscle(exercise)
+                secondary = get_secondary_muscles(exercise)
+                is_hypertrophy = reps > 6
+                
+                st.markdown("---")
+                if is_hypertrophy:
+                    st.markdown("**📊 Fractional Set Preview (Hypertrophy)**")
+                    preview_parts = [f"**{primary}**: +{sets:.1f} sets"]
+                    for syn in secondary[:4]:
+                        if syn:
+                            preview_parts.append(f"{syn}: +{sets * 0.5:.1f}")
+                    st.success(f"→ {' | '.join(preview_parts)}")
+                else:
+                    st.markdown("**📊 Fractional Set Preview (Strength)**")
+                    st.info(f"→ **{selected_exercise}**: +{sets} strength sets | Primary: {primary}")
+                st.markdown("---")
 
         if st.button("Add Exercise", key=f"add_{day}_{week_idx}"):
-            week["days"][day].append({
-                "exercise": selected_exercise,
-                "sets": sets,
-                "reps": reps,
-            })
+            week["days"][day].append(
+                {
+                    "exercise": selected_exercise,
+                    "sets": sets,
+                    "reps": reps,
+                }
+            )
             st.rerun()
 
 
-def render_weekly_editor_enhanced(exercises, exercise_names, display_to_name, name_to_display):
+def render_user_profile_compact():
+    """Render a compact user profile widget for the weekly editor sidebar."""
+    profile = st.session_state.user_profile
+    targets = get_volume_targets()
+    
+    with st.expander("👤 Profile & Targets", expanded=True):
+        # Training status
+        selected_status = st.selectbox(
+            "Training Status",
+            options=list(TRAINING_STATUS.keys()),
+            index=list(TRAINING_STATUS.keys()).index(profile["training_status"]),
+            key="compact_profile_status",
+            help="Your experience level affects volume recommendations",
+        )
+        if selected_status != profile["training_status"]:
+            st.session_state.user_profile["training_status"] = selected_status
+            st.rerun()
+        
+        # Volume tier
+        selected_tier = st.selectbox(
+            "Volume Tier",
+            options=list(VOLUME_TIERS.keys()),
+            index=list(VOLUME_TIERS.keys()).index(profile["volume_tier"]),
+            key="compact_profile_tier",
+            help="How much time can you dedicate to training?",
+        )
+        if selected_tier != profile["volume_tier"]:
+            st.session_state.user_profile["volume_tier"] = selected_tier
+            st.rerun()
+        
+        # Show current targets
+        st.markdown("**🎯 Weekly Targets**")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(
+                "Hyp",
+                f"{targets['hypertrophy']['low']}-{targets['hypertrophy']['high']}",
+                help="Sets per muscle group for hypertrophy"
+            )
+        with col2:
+            st.metric(
+                "Str",
+                f"{targets['strength']['low']}-{targets['strength']['high']}",
+                help="Sets per lift for strength"
+            )
+        
+        # Custom targets toggle
+        use_custom = st.checkbox(
+            "Custom targets",
+            value=profile["use_custom_targets"],
+            key="compact_use_custom",
+        )
+        if use_custom != profile["use_custom_targets"]:
+            st.session_state.user_profile["use_custom_targets"] = use_custom
+            st.rerun()
+        
+        if use_custom:
+            custom_hyp = st.number_input(
+                "Hypertrophy target",
+                min_value=4,
+                max_value=30,
+                value=profile["custom_hypertrophy_target"],
+                key="compact_custom_hyp",
+            )
+            if custom_hyp != profile["custom_hypertrophy_target"]:
+                st.session_state.user_profile["custom_hypertrophy_target"] = custom_hyp
+                st.rerun()
+            
+            custom_str = st.number_input(
+                "Strength target",
+                min_value=1,
+                max_value=10,
+                value=profile["custom_strength_target"],
+                key="compact_custom_str",
+            )
+            if custom_str != profile["custom_strength_target"]:
+                st.session_state.user_profile["custom_strength_target"] = custom_str
+                st.rerun()
+
+
+def render_weekly_editor_enhanced(
+    exercises, exercise_names, display_to_name, name_to_display
+):
     """
     Enhanced weekly editor with multi-week support and stats panel.
     Uses 70/30 column layout.
     """
     # Week navigation at the top
     render_week_navigation()
-    
+
     st.markdown("---")
-    
+
     # Get current week data
     week_idx = st.session_state.current_week
     week = st.session_state.program_weeks[week_idx]
     week_days = week["days"]
-    
+
     # Workout sheet for current week at the top
     with st.expander("📄 Workout Sheet (click to expand)", expanded=False):
         render_workout_sheet(week_days, show_header=False)
-    
+
     st.markdown("---")
-    
+
     # Two-column layout: 70% editor, 30% stats
     col_editor, col_stats = st.columns([7, 3])
-    
+
     with col_editor:
         st.header("✏️ Edit Program")
-        
+
         # Day tabs
         day_tabs = st.tabs(DAYS)
-        
+
         for i, day in enumerate(DAYS):
             with day_tabs[i]:
                 # Track selected day for stats panel
                 if st.session_state.selected_day != day:
                     # This won't trigger on first render, which is fine
                     pass
-                
-                render_day_editor_enhanced(day, exercises, exercise_names, display_to_name, name_to_display)
-    
+
+                render_day_editor_enhanced(
+                    day, exercises, exercise_names, display_to_name, name_to_display
+                )
+
     with col_stats:
+        # Compact user profile at top of stats panel
+        render_user_profile_compact()
+        
+        st.markdown("---")
+        
         # Week stats panel
         week_stats = render_week_stats_panel(week_days, exercises)
-        
+
         st.markdown("---")
-        
+
         # Body diagrams showing muscle volume
         render_body_diagrams(week_stats["muscle_breakdown"])
-        
+
         st.markdown("---")
-        
+
         # Day stats panel - use selectbox to choose day
         selected_day = st.selectbox(
             "View day stats",
@@ -1456,7 +1714,7 @@ def render_weekly_editor_enhanced(exercises, exercise_names, display_to_name, na
         )
         day_exercises = week_days.get(selected_day, [])
         render_day_stats_panel(day_exercises, exercises, selected_day)
-    
+
     # Mesocycle graphs below the main editor (full width)
     if len(st.session_state.program_weeks) > 1:
         st.markdown("---")
@@ -1468,9 +1726,10 @@ def generate_exercise_id(name):
     """Generate an ID from exercise name (similar to free-exercise-db format)."""
     # Replace spaces and special characters with underscores
     import re
+
     # Remove special characters except spaces, replace spaces with underscores
-    clean_name = re.sub(r'[^a-zA-Z0-9\s]', '', name)
-    return clean_name.replace(' ', '_')
+    clean_name = re.sub(r"[^a-zA-Z0-9\s]", "", name)
+    return clean_name.replace(" ", "_")
 
 
 def get_all_exercises(base_exercises):
@@ -1479,7 +1738,7 @@ def get_all_exercises(base_exercises):
     Custom exercises are displayed first and include their source in the name.
     """
     all_exercises = []
-    
+
     # Add custom exercises first (they appear at top of lists)
     for source_name, exercises in st.session_state.get("custom_exercises", {}).items():
         for ex in exercises:
@@ -1488,14 +1747,14 @@ def get_all_exercises(base_exercises):
             ex_with_source["_source"] = source_name
             ex_with_source["_display_name"] = f"{ex['name']} [{source_name}]"
             all_exercises.append(ex_with_source)
-    
+
     # Add base exercises (from free-exercise-db)
     for ex in base_exercises:
         ex_with_source = ex.copy()
         ex_with_source["_source"] = "free-exercise-db"
         ex_with_source["_display_name"] = ex["name"]
         all_exercises.append(ex_with_source)
-    
+
     return all_exercises
 
 
@@ -1508,13 +1767,15 @@ def add_custom_exercise(source_name, exercise):
     """Add a custom exercise to a source collection."""
     if source_name not in st.session_state.custom_exercises:
         st.session_state.custom_exercises[source_name] = []
-    
+
     # Generate ID if not provided
     if "id" not in exercise or not exercise["id"]:
         exercise["id"] = generate_exercise_id(exercise["name"])
-    
+
     # Check for duplicates within the same source
-    existing_names = [e["name"].lower() for e in st.session_state.custom_exercises[source_name]]
+    existing_names = [
+        e["name"].lower() for e in st.session_state.custom_exercises[source_name]
+    ]
     if exercise["name"].lower() not in existing_names:
         st.session_state.custom_exercises[source_name].append(exercise)
         return True
@@ -1525,7 +1786,8 @@ def remove_custom_exercise(source_name, exercise_name):
     """Remove a custom exercise from a source collection."""
     if source_name in st.session_state.custom_exercises:
         st.session_state.custom_exercises[source_name] = [
-            e for e in st.session_state.custom_exercises[source_name]
+            e
+            for e in st.session_state.custom_exercises[source_name]
             if e["name"] != exercise_name
         ]
         # Remove empty sources
@@ -1542,7 +1804,7 @@ def import_custom_exercises_from_json(json_data, source_name):
     success_count = 0
     error_count = 0
     errors = []
-    
+
     # Handle single exercise or list
     if isinstance(json_data, dict):
         exercises = [json_data]
@@ -1550,27 +1812,29 @@ def import_custom_exercises_from_json(json_data, source_name):
         exercises = json_data
     else:
         return 0, 1, ["Invalid JSON format: expected object or array"]
-    
+
     for i, ex in enumerate(exercises):
         # Validate required fields
         if not isinstance(ex, dict):
             errors.append(f"Item {i}: Not a valid object")
             error_count += 1
             continue
-        
+
         if "name" not in ex or not ex["name"]:
             errors.append(f"Item {i}: Missing required field 'name'")
             error_count += 1
             continue
-        
+
         if "primaryMuscles" not in ex or not ex["primaryMuscles"]:
-            errors.append(f"Item {i} ({ex.get('name', 'unknown')}): Missing required field 'primaryMuscles'")
+            errors.append(
+                f"Item {i} ({ex.get('name', 'unknown')}): Missing required field 'primaryMuscles'"
+            )
             error_count += 1
             continue
-        
+
         if "secondaryMuscles" not in ex:
             ex["secondaryMuscles"] = []  # Default to empty if not provided
-        
+
         # Create clean exercise object
         clean_exercise = {
             "name": ex["name"],
@@ -1585,13 +1849,13 @@ def import_custom_exercises_from_json(json_data, source_name):
             "category": ex.get("category"),
             "images": ex.get("images", []),
         }
-        
+
         if add_custom_exercise(source_name, clean_exercise):
             success_count += 1
         else:
             errors.append(f"'{ex['name']}': Duplicate exercise name in source")
             error_count += 1
-    
+
     return success_count, error_count, errors
 
 
@@ -1974,11 +2238,11 @@ def calculate_strength_sets(program, exercises):
 def calculate_hypertrophy_sets_for_week(week_index, exercises):
     """
     Calculate hypertrophy sets for a specific week.
-    
+
     Args:
         week_index: Index of the week to calculate
         exercises: Exercise library
-    
+
     Returns:
         Dict of daily muscle sets
     """
@@ -1991,11 +2255,11 @@ def calculate_hypertrophy_sets_for_week(week_index, exercises):
 def calculate_strength_sets_for_week(week_index, exercises):
     """
     Calculate strength sets for a specific week.
-    
+
     Args:
         week_index: Index of the week to calculate
         exercises: Exercise library
-    
+
     Returns:
         Dict of daily exercise sets
     """
@@ -2008,10 +2272,10 @@ def calculate_strength_sets_for_week(week_index, exercises):
 def calculate_sets_for_current_week(exercises):
     """
     Calculate both hypertrophy and strength sets for the current week.
-    
+
     Args:
         exercises: Exercise library
-    
+
     Returns:
         Tuple of (hypertrophy_sets, strength_sets)
     """
@@ -2024,22 +2288,22 @@ def calculate_sets_for_current_week(exercises):
 def calculate_total_program_volume(exercises):
     """
     Calculate total volume across all weeks in the program.
-    
+
     Args:
         exercises: Exercise library
-    
+
     Returns:
         Dict with per-week and total stats
     """
     weeks_stats = []
-    
+
     for i, week in enumerate(st.session_state.program_weeks):
         stats = calculate_week_stats(week["days"], exercises)
         stats["week_index"] = i
         stats["week_name"] = week["name"]
         stats["week_type"] = week["type"]
         weeks_stats.append(stats)
-    
+
     # Calculate totals across all weeks
     total_stats = {
         "total_sets": sum(w["total_sets"] for w in weeks_stats),
@@ -2047,7 +2311,7 @@ def calculate_total_program_volume(exercises):
         "hypertrophy_sets": sum(w["hypertrophy_sets"] for w in weeks_stats),
         "weeks": weeks_stats,
     }
-    
+
     return total_stats
 
 
@@ -2055,7 +2319,7 @@ def render_1rm_manager(exercises, exercise_names, display_to_name=None):
     """Render 1RM management section."""
     st.header("🎯 1RM Manager")
     st.caption("Enter your 1RM values to get personalized weight recommendations")
-    
+
     # Default mapping if not provided
     if display_to_name is None:
         display_to_name = {name: name for name in exercise_names}
@@ -2147,14 +2411,15 @@ def render_1rm_manager(exercises, exercise_names, display_to_name=None):
                         st.rerun()
         else:
             st.caption("No 1RMs saved yet")
-    
+
     # Bulk Import/Export section
     st.markdown("---")
     with st.expander("📦 Bulk Import/Export 1RM Data"):
         import_tab, export_tab = st.tabs(["Import JSON", "Export JSON"])
-        
+
         with import_tab:
-            st.markdown("""
+            st.markdown(
+                """
             Upload a JSON file with your 1RM values. Format should be:
             ```json
             {
@@ -2169,26 +2434,32 @@ def render_1rm_manager(exercises, exercise_names, display_to_name=None):
                 {"exercise": "Another Exercise", "1rm": 80.5}
             ]
             ```
-            """)
-            
-            uploaded_1rm = st.file_uploader("Upload 1RM JSON", type=["json"], key="1rm_json_upload")
-            
+            """
+            )
+
+            uploaded_1rm = st.file_uploader(
+                "Upload 1RM JSON", type=["json"], key="1rm_json_upload"
+            )
+
             if uploaded_1rm is not None:
                 merge_mode = st.radio(
                     "Import mode",
-                    ["Merge (keep existing, add/update new)", "Replace (clear existing, use uploaded)"],
+                    [
+                        "Merge (keep existing, add/update new)",
+                        "Replace (clear existing, use uploaded)",
+                    ],
                     key="1rm_import_mode",
                     horizontal=True,
                 )
-                
+
                 if st.button("Import 1RM Data", key="import_1rm_btn"):
                     try:
                         uploaded_1rm.seek(0)
                         data = json.load(uploaded_1rm)
-                        
+
                         # Handle different formats
                         imported_1rms = {}
-                        
+
                         if isinstance(data, dict):
                             # Simple dict format: {"exercise": 1rm_value}
                             for k, v in data.items():
@@ -2198,17 +2469,26 @@ def render_1rm_manager(exercises, exercise_names, display_to_name=None):
                             # List format: [{"exercise": "name", "1rm": value}, ...]
                             for item in data:
                                 if isinstance(item, dict):
-                                    ex_name = item.get("exercise") or item.get("name") or item.get("Exercise")
-                                    rm_val = item.get("1rm") or item.get("1RM") or item.get("rm") or item.get("value")
+                                    ex_name = (
+                                        item.get("exercise")
+                                        or item.get("name")
+                                        or item.get("Exercise")
+                                    )
+                                    rm_val = (
+                                        item.get("1rm")
+                                        or item.get("1RM")
+                                        or item.get("rm")
+                                        or item.get("value")
+                                    )
                                     if ex_name and rm_val and float(rm_val) > 0:
                                         imported_1rms[ex_name] = float(rm_val)
-                        
+
                         if imported_1rms:
                             if "Replace" in merge_mode:
                                 st.session_state.exercise_1rm = imported_1rms
                             else:
                                 st.session_state.exercise_1rm.update(imported_1rms)
-                            
+
                             st.success(f"Imported {len(imported_1rms)} 1RM values!")
                             st.rerun()
                         else:
@@ -2217,13 +2497,15 @@ def render_1rm_manager(exercises, exercise_names, display_to_name=None):
                         st.error("Invalid JSON file")
                     except Exception as e:
                         st.error(f"Error importing: {e}")
-        
+
         with export_tab:
             if st.session_state.exercise_1rm:
-                st.markdown(f"**{len(st.session_state.exercise_1rm)} 1RM values saved**")
-                
+                st.markdown(
+                    f"**{len(st.session_state.exercise_1rm)} 1RM values saved**"
+                )
+
                 export_data = json.dumps(st.session_state.exercise_1rm, indent=2)
-                
+
                 st.download_button(
                     label="📥 Download 1RM Data (JSON)",
                     data=export_data,
@@ -2231,20 +2513,21 @@ def render_1rm_manager(exercises, exercise_names, display_to_name=None):
                     mime="application/json",
                     key="export_1rm_btn",
                 )
-                
+
                 # Preview
                 with st.expander("Preview data"):
                     st.code(export_data, language="json")
             else:
                 st.info("No 1RM data to export. Add some values first!")
-        
-        # Clear all button
+
+        # Clear all button with confirmation
         st.markdown("---")
         if st.session_state.exercise_1rm:
-            if st.button("🗑️ Clear All 1RM Data", key="clear_all_1rm"):
-                st.session_state.exercise_1rm = {}
-                st.success("All 1RM data cleared")
-                st.rerun()
+            with st.popover("🗑️ Clear All 1RM Data"):
+                st.warning(f"Delete all {len(st.session_state.exercise_1rm)} 1RM values?")
+                if st.button("Yes, Clear All", type="primary", key="confirm_clear_1rm"):
+                    st.session_state.exercise_1rm = {}
+                    st.rerun()
 
     # Show recommendations if exercise has 1RM
     if selected_ex and st.session_state.exercise_1rm.get(selected_ex):
@@ -2284,334 +2567,6 @@ def render_weight_recommendations(exercise_name, one_rm):
                 st.markdown(
                     f"• **{rec['reps']} reps** @ {rec['weight']:.1f} kg ({rec['pct']}%)"
                 )
-
-
-def render_day_editor(day, exercises, exercise_names, display_to_name=None, name_to_display=None):
-    """Render the exercise editor for a specific day."""
-    st.subheader(f"📅 {day}")
-    
-    # Default mappings if not provided
-    if display_to_name is None:
-        display_to_name = {name: name for name in exercise_names}
-    if name_to_display is None:
-        name_to_display = {name: name for name in exercise_names}
-
-    day_program = st.session_state.program[day]
-
-    # Initialize edit state if needed
-    if "editing_exercise" not in st.session_state:
-        st.session_state.editing_exercise = None
-
-    # Display existing exercises for this day
-    if day_program:
-        for i, entry in enumerate(day_program):
-            edit_key = f"{day}_{i}"
-            is_editing = st.session_state.editing_exercise == edit_key
-            
-            # Get display name for current exercise
-            current_display_name = name_to_display.get(entry["exercise"], entry["exercise"])
-
-            if is_editing:
-                # Edit mode
-                st.markdown(f"**✏️ Editing: {entry['exercise']}**")
-
-                col1, col2, col3 = st.columns([3, 1, 1])
-
-                with col1:
-                    # Find index of current exercise in display names
-                    try:
-                        current_index = exercise_names.index(current_display_name)
-                    except ValueError:
-                        current_index = 0
-                    
-                    selected_display_name = st.selectbox(
-                        "Exercise",
-                        options=exercise_names,
-                        index=current_index,
-                        key=f"edit_ex_{edit_key}",
-                    )
-                    # Convert display name to actual name
-                    new_exercise = display_to_name.get(selected_display_name, selected_display_name)
-
-                with col2:
-                    new_sets = st.number_input(
-                        "Sets",
-                        min_value=1,
-                        max_value=10,
-                        value=entry["sets"],
-                        key=f"edit_sets_{edit_key}",
-                    )
-
-                with col3:
-                    new_reps = st.number_input(
-                        "Reps",
-                        min_value=1,
-                        max_value=30,
-                        value=entry["reps"],
-                        key=f"edit_reps_{edit_key}",
-                    )
-
-                # Show weight suggestion for new values
-                one_rm = st.session_state.exercise_1rm.get(new_exercise)
-                if one_rm:
-                    suggested_weight = get_weight_for_reps(one_rm, new_reps)
-                    training_type = "Strength" if new_reps <= 6 else "Hypertrophy"
-                    st.caption(
-                        f"💡 Suggested: {suggested_weight:.1f} kg for {training_type}"
-                    )
-
-                col_save, col_cancel = st.columns(2)
-                with col_save:
-                    if st.button("💾 Save", key=f"save_{edit_key}"):
-                        st.session_state.program[day][i] = {
-                            "exercise": new_exercise,  # Store actual name
-                            "sets": new_sets,
-                            "reps": new_reps,
-                        }
-                        st.session_state.editing_exercise = None
-                        st.rerun()
-
-                with col_cancel:
-                    if st.button("❌ Cancel", key=f"cancel_{edit_key}"):
-                        st.session_state.editing_exercise = None
-                        st.rerun()
-
-                st.markdown("---")
-
-            else:
-                # Display mode - added col for info button
-                col1, col2, col3, col4, col5, col_info, col6, col7 = st.columns(
-                    [3, 1, 1, 1, 1.5, 0.5, 0.5, 0.5]
-                )
-
-                with col1:
-                    st.text(entry["exercise"])
-                with col2:
-                    st.text(f"{entry['sets']} sets")
-                with col3:
-                    st.text(f"{entry['reps']} reps")
-                with col4:
-                    rep_type = "💪 Hyp" if entry["reps"] > 6 else "🏋️ Str"
-                    st.text(rep_type)
-                with col5:
-                    # Show suggested weight if 1RM exists
-                    one_rm = st.session_state.exercise_1rm.get(entry["exercise"])
-                    if one_rm:
-                        suggested_weight = get_weight_for_reps(one_rm, entry["reps"])
-                        st.caption(f"~{suggested_weight:.1f}kg")
-                    else:
-                        st.caption("--")
-                with col_info:
-                    # Info button to show exercise details
-                    details_key = f"show_details_{day}_{i}"
-                    if st.button("ℹ️", key=f"info_{day}_{i}", help="View exercise details"):
-                        st.session_state[details_key] = not st.session_state.get(details_key, False)
-                        st.rerun()
-                with col6:
-                    if st.button("✏️", key=f"edit_{day}_{i}", help="Edit exercise"):
-                        st.session_state.editing_exercise = edit_key
-                        st.rerun()
-                with col7:
-                    if st.button("🗑️", key=f"remove_{day}_{i}", help="Remove exercise"):
-                        st.session_state.program[day].pop(i)
-                        st.rerun()
-
-                # Show muscle contribution details
-                exercise_info = get_exercise_by_name(exercises, entry["exercise"])
-                if exercise_info:
-                    num_sets = entry["sets"]
-                    is_hypertrophy = entry["reps"] > 6
-
-                    # Build contribution text (using free-exercise-db format)
-                    target = get_primary_muscle(exercise_info)
-                    synergists = get_secondary_muscles(exercise_info)
-
-                    if is_hypertrophy:
-                        # Hypertrophy: show muscle contributions
-                        contrib_parts = [f"**{target}**: {num_sets:.0f} sets"]
-                        for syn in synergists[:3]:  # Limit to 3 synergists for display
-                            if syn:
-                                contrib_parts.append(f"{syn}: {num_sets * 0.5:.1f}")
-                        if len(synergists) > 3:
-                            contrib_parts.append(f"+{len(synergists) - 3} more")
-
-                        st.caption(f"   ↳ {' | '.join(contrib_parts)}")
-                    else:
-                        # Strength: show exercise focus + supporting muscles
-                        st.caption(
-                            f"   ↳ **{entry['exercise']}**: {num_sets:.0f} direct sets | "
-                            f"Muscles: {target}, {', '.join(synergists[:2]) if synergists else 'none'}"
-                        )
-                
-                # Show exercise details if toggled on
-                details_key = f"show_details_{day}_{i}"
-                if st.session_state.get(details_key, False):
-                    with st.container():
-                        st.markdown("---")
-                        render_exercise_details(exercise_info, show_images=True, show_instructions=True, key_prefix=f"{day}_{i}")
-                        if st.button("Close details", key=f"close_details_{day}_{i}"):
-                            st.session_state[details_key] = False
-                            st.rerun()
-                        st.markdown("---")
-
-                st.markdown("")  # Small spacing between exercises
-
-    else:
-        st.caption("No exercises added yet")
-
-    # Add new exercise form
-    with st.expander("➕ Add Exercise"):
-        selected_display_name = st.selectbox(
-            "Exercise",
-            options=exercise_names,
-            key=f"select_{day}",
-        )
-        
-        # Convert display name to actual name
-        selected_exercise = display_to_name.get(selected_display_name, selected_display_name)
-
-        # Show exercise info
-        if selected_exercise:
-            exercise = get_exercise_by_name(exercises, selected_exercise)
-            if exercise:
-                primary = get_primary_muscle(exercise)
-                secondary = get_secondary_muscles(exercise)
-                category = exercise.get("category", "N/A")
-                level = exercise.get("level", "N/A")
-                equipment = exercise.get("equipment", "N/A")
-                
-                st.caption(
-                    f"**Target:** {primary} | "
-                    f"**Category:** {category.title()} | "
-                    f"**Level:** {level.title() if level else 'N/A'}"
-                )
-                if secondary:
-                    st.caption(f"**Synergists:** {', '.join(secondary[:4])}")
-                
-                # Show exercise details with images/instructions
-                with st.expander("📷 View Exercise Details"):
-                    render_exercise_details(exercise, show_images=True, show_instructions=True, key_prefix=f"add_{day}")
-
-        # 1RM section - show/edit inline
-        one_rm = st.session_state.exercise_1rm.get(selected_exercise)
-
-        st.markdown("---")
-        st.markdown("**🎯 1RM for weight suggestions**")
-
-        if one_rm:
-            col_rm, col_edit = st.columns([2, 1])
-            with col_rm:
-                st.success(f"Current 1RM: **{one_rm:.1f} kg**")
-            with col_edit:
-                if st.checkbox("Edit 1RM", key=f"edit_1rm_{day}"):
-                    new_1rm = st.number_input(
-                        "New 1RM (kg)",
-                        min_value=0.0,
-                        max_value=500.0,
-                        value=one_rm,
-                        step=2.5,
-                        key=f"new_1rm_{day}",
-                    )
-                    if st.button("Update", key=f"update_1rm_{day}"):
-                        st.session_state.exercise_1rm[selected_exercise] = new_1rm
-                        st.rerun()
-        else:
-            st.caption("No 1RM set - add one for weight suggestions")
-
-            rm_method = st.radio(
-                "How to set 1RM?",
-                ["Enter directly", "Calculate from lift"],
-                key=f"rm_method_{day}",
-                horizontal=True,
-            )
-
-            if rm_method == "Enter directly":
-                new_1rm = st.number_input(
-                    "1RM (kg)",
-                    min_value=0.0,
-                    max_value=500.0,
-                    value=0.0,
-                    step=2.5,
-                    key=f"direct_1rm_{day}",
-                )
-                if new_1rm > 0:
-                    if st.button("Save 1RM", key=f"save_1rm_{day}"):
-                        st.session_state.exercise_1rm[selected_exercise] = new_1rm
-                        st.rerun()
-            else:
-                col_w, col_r = st.columns(2)
-                with col_w:
-                    lift_weight = st.number_input(
-                        "Weight (kg)",
-                        min_value=0.0,
-                        max_value=500.0,
-                        value=0.0,
-                        step=2.5,
-                        key=f"lift_weight_{day}",
-                    )
-                with col_r:
-                    lift_reps = st.number_input(
-                        "Reps done",
-                        min_value=1,
-                        max_value=30,
-                        value=5,
-                        key=f"lift_reps_{day}",
-                    )
-
-                if lift_weight > 0:
-                    est_1rm = calculate_1rm_from_reps(lift_weight, lift_reps)
-                    st.info(f"Estimated 1RM: **{est_1rm:.1f} kg**")
-                    if st.button("Save Est. 1RM", key=f"save_est_1rm_{day}"):
-                        st.session_state.exercise_1rm[selected_exercise] = est_1rm
-                        st.rerun()
-
-        st.markdown("---")
-
-        # Sets and reps
-        col1, col2 = st.columns(2)
-        with col1:
-            sets = st.number_input(
-                "Sets", min_value=1, max_value=10, value=3, key=f"sets_{day}"
-            )
-        with col2:
-            reps = st.number_input(
-                "Reps", min_value=1, max_value=30, value=10, key=f"reps_{day}"
-            )
-
-        # Show weight suggestion based on 1RM (refresh after potential update)
-        one_rm = st.session_state.exercise_1rm.get(selected_exercise)
-        if one_rm:
-            suggested_weight = get_weight_for_reps(one_rm, reps)
-            training_type = "Strength" if reps <= 6 else "Hypertrophy"
-            pct = (suggested_weight / one_rm) * 100
-
-            st.success(
-                f"💡 **Suggested weight:** {suggested_weight:.1f} kg "
-                f"({pct:.0f}% of 1RM) for {training_type}"
-            )
-
-            # Quick reference for this rep count
-            with st.expander("📊 Quick Reference (all rep ranges)"):
-                recs = get_training_recommendations(one_rm)
-                col_s, col_h = st.columns(2)
-                with col_s:
-                    st.markdown("**🏋️ Strength:**")
-                    for r in recs["strength"]["rep_ranges"]:
-                        st.caption(f"{r['reps']} reps @ {r['weight']:.1f} kg")
-                with col_h:
-                    st.markdown("**💪 Hypertrophy:**")
-                    for r in recs["hypertrophy"]["rep_ranges"]:
-                        st.caption(f"{r['reps']} reps @ {r['weight']:.1f} kg")
-
-        if st.button("Add Exercise", key=f"add_{day}"):
-            st.session_state.program[day].append(
-                {
-                    "exercise": selected_exercise,
-                    "sets": sets,
-                    "reps": reps,
-                }
-            )
-            st.rerun()
 
 
 def render_weekly_summary(hyp_sets, str_sets):
@@ -3823,7 +3778,7 @@ def render_program_actions():
         "Program Name",
         value=st.session_state.program_name,
     )
-    
+
     # Show program summary
     num_weeks = len(st.session_state.program_weeks)
     st.sidebar.caption(f"📊 {num_weeks} week{'s' if num_weeks > 1 else ''} in program")
@@ -3850,7 +3805,7 @@ def render_program_actions():
                 # Reset file position to beginning
                 uploaded_file.seek(0)
                 program_data = json.load(uploaded_file)
-                
+
                 # Use the new import function that handles both formats
                 if import_program_from_json(program_data):
                     st.sidebar.success("Program loaded successfully!")
@@ -3858,497 +3813,102 @@ def render_program_actions():
             except Exception as e:
                 st.sidebar.error(f"Error loading: {e}")
 
-    # Clear program
-    if st.sidebar.button("🗑️ Clear All Weeks"):
-        st.session_state.program_weeks = [{
-            "name": "Week 1",
-            "type": "training",
-            "days": {day: [] for day in DAYS},
-            "notes": "",
-        }]
-        st.session_state.current_week = 0
-        st.session_state.program = {day: [] for day in DAYS}  # Legacy
-        st.rerun()
-
-
-def render_copy_day():
-    """Render copy day functionality."""
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("📋 Copy Day")
-
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        from_day = st.selectbox("From", DAYS, key="copy_from")
-    with col2:
-        to_day = st.selectbox("To", DAYS, key="copy_to")
-
-    if st.sidebar.button("Copy Day"):
-        if from_day != to_day:
-            # Deep copy the exercises
-            st.session_state.program[to_day] = [
-                dict(entry) for entry in st.session_state.program[from_day]
+    # Clear program with confirmation
+    with st.sidebar.popover("🗑️ Clear All Weeks"):
+        st.warning("⚠️ This will delete all weeks and exercises!")
+        st.caption("This action cannot be undone.")
+        if st.button("Yes, Clear Everything", type="primary", key="confirm_clear_all"):
+            st.session_state.program_weeks = [
+                {
+                    "name": "Week 1",
+                    "type": "training",
+                    "days": {day: [] for day in DAYS},
+                    "notes": "",
+                }
             ]
-            st.sidebar.success(f"Copied {from_day} to {to_day}")
+            st.session_state.current_week = 0
+            st.session_state.program = {day: [] for day in DAYS}  # Legacy
             st.rerun()
-        else:
-            st.sidebar.warning("Select different days")
 
 
 def render_quick_templates():
-    """Render quick template options."""
+    """Render quick template options using templates from JSON file."""
     st.sidebar.markdown("---")
     st.sidebar.subheader("⚡ Quick Templates")
-
+    
+    # Load templates from JSON
+    all_templates = load_program_templates()
+    
+    if not all_templates:
+        st.sidebar.warning("No templates available")
+        return
+    
+    # Get category list
+    categories = list(all_templates.keys())
+    
     template_category = st.sidebar.selectbox(
         "Template Category",
-        ["Basic Splits", "MSP3 Bodybuilding", "MSP3 Powerlifting"],
+        categories,
         key="template_category",
     )
-
-    if template_category == "Basic Splits":
-        templates = [
-            "Select...",
-            "Upper/Lower 4-Day",
-            "Push/Pull/Legs 6-Day",
-            "Full Body 3-Day",
-        ]
-    elif template_category == "MSP3 Bodybuilding":
-        templates = [
-            "Select...",
-            "MSP3 BB 2-Day (Minimal Time)",
-            "MSP3 BB 3-Day (4-Day Rotation)",
-            "MSP3 BB 4-Day",
-            "MSP3 BB 5-Day",
-            "MSP3 BB 6-Day",
-        ]
-    else:  # MSP3 Powerlifting
-        templates = [
-            "Select...",
-            "MSP3 PL 3-Day Volume",
-            "MSP3 PL 4-Day Volume",
-        ]
-
+    
+    # Get templates for selected category
+    category_templates = all_templates.get(template_category, {})
+    template_names = ["Select..."] + list(category_templates.keys())
+    
     template = st.sidebar.selectbox(
         "Load Template",
-        templates,
+        template_names,
         key="template_select",
     )
 
     if st.sidebar.button("Apply Template") and template != "Select...":
-        apply_template(template)
+        apply_template(template_category, template)
         st.rerun()
 
 
-def apply_template(template_name):
-    """Apply a program template using exercises from free-exercise-db."""
+def apply_template(category, template_name):
+    """Apply a program template from the JSON file."""
+    # Load templates
+    all_templates = load_program_templates()
+    
+    if not all_templates:
+        st.error("Could not load templates")
+        return
+    
+    # Get template data
+    category_templates = all_templates.get(category, {})
+    template_data = category_templates.get(template_name, {})
+    
+    if not template_data:
+        st.error(f"Template '{template_name}' not found in category '{category}'")
+        return
+    
     # Clear current week's program
     week_idx = st.session_state.current_week
     st.session_state.program_weeks[week_idx]["days"] = {day: [] for day in DAYS}
     
-    # Get reference to current week days for easier access
+    # Get reference to current week days
     program = st.session_state.program_weeks[week_idx]["days"]
+    
+    # Apply template days
+    for day, exercises in template_data.get("days", {}).items():
+        if day in program:
+            program[day] = [dict(ex) for ex in exercises]  # Deep copy
+    
+    # Set program name
+    st.session_state.program_name = template_data.get("program_name", template_name)
     
     # Also update legacy format for compatibility
     st.session_state.program = program
 
-    if template_name == "Upper/Lower 4-Day":
-        # Monday - Upper
-        program["Monday"] = [
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 4, "reps": 8},
-            {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 8},
-            {"exercise": "Standing Military Press", "sets": 3, "reps": 10},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 10},
-            {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
-        ]
-        # Tuesday - Lower
-        program["Tuesday"] = [
-            {"exercise": "Barbell Squat", "sets": 4, "reps": 6},
-            {"exercise": "Romanian Deadlift", "sets": 4, "reps": 8},
-            {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12},
-            {"exercise": "Standing Calf Raises", "sets": 4, "reps": 15},
-        ]
-        # Thursday - Upper
-        program["Thursday"] = [
-            {"exercise": "Incline Dumbbell Press", "sets": 4, "reps": 10},
-            {"exercise": "Seated Cable Rows", "sets": 4, "reps": 10},
-            {"exercise": "Seated Dumbbell Press", "sets": 3, "reps": 10},
-            {"exercise": "Pullups", "sets": 3, "reps": 8},
-            {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
-        ]
-        # Friday - Lower
-        program["Friday"] = [
-            {"exercise": "Front Barbell Squat", "sets": 4, "reps": 8},
-            {"exercise": "Barbell Deadlift", "sets": 4, "reps": 5},
-            {"exercise": "Barbell Walking Lunge", "sets": 3, "reps": 10},
-            {"exercise": "Glute Ham Raise", "sets": 3, "reps": 10},
-            {"exercise": "Standing Calf Raises", "sets": 4, "reps": 15},
-        ]
-        st.session_state.program_name = "Upper/Lower 4-Day Split"
 
-    elif template_name == "Push/Pull/Legs 6-Day":
-        # Monday - Push
-        program["Monday"] = [
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 4, "reps": 6},
-            {"exercise": "Standing Military Press", "sets": 4, "reps": 8},
-            {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 10},
-            {"exercise": "Side Lateral Raise", "sets": 4, "reps": 12},
-            {"exercise": "Dips - Chest Version", "sets": 3, "reps": 10},
-        ]
-        # Tuesday - Pull
-        program["Tuesday"] = [
-            {"exercise": "Barbell Deadlift", "sets": 4, "reps": 5},
-            {"exercise": "Pullups", "sets": 4, "reps": 8},
-            {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 8},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 10},
-            {"exercise": "Barbell Curl", "sets": 3, "reps": 12},
-        ]
-        # Wednesday - Legs
-        program["Wednesday"] = [
-            {"exercise": "Barbell Squat", "sets": 4, "reps": 6},
-            {"exercise": "Romanian Deadlift", "sets": 4, "reps": 8},
-            {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12},
-            {"exercise": "Standing Calf Raises", "sets": 4, "reps": 15},
-        ]
-        # Thursday - Push
-        program["Thursday"] = [
-            {"exercise": "Dumbbell Bench Press", "sets": 4, "reps": 10},
-            {"exercise": "Standing Military Press", "sets": 4, "reps": 8},
-            {"exercise": "Cable Chest Press", "sets": 3, "reps": 12},
-            {"exercise": "Side Lateral Raise", "sets": 4, "reps": 12},
-            {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
-        ]
-        # Friday - Pull
-        program["Friday"] = [
-            {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 8},
-            {"exercise": "Weighted Pull Ups", "sets": 4, "reps": 6},
-            {"exercise": "Seated Cable Rows", "sets": 3, "reps": 10},
-            {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12},
-            {"exercise": "Barbell Curl", "sets": 3, "reps": 12},
-        ]
-        # Saturday - Legs
-        program["Saturday"] = [
-            {"exercise": "Front Barbell Squat", "sets": 4, "reps": 8},
-            {"exercise": "Barbell Hip Thrust", "sets": 4, "reps": 10},
-            {"exercise": "Barbell Walking Lunge", "sets": 3, "reps": 10},
-            {"exercise": "Natural Glute Ham Raise", "sets": 3, "reps": 8},
-            {"exercise": "Standing Calf Raises", "sets": 4, "reps": 15},
-        ]
-        st.session_state.program_name = "Push/Pull/Legs 6-Day"
+# Templates have been moved to data/program_templates.json
+# See apply_template() function above for the new implementation
 
-    elif template_name == "Full Body 3-Day":
-        # Monday
-        program["Monday"] = [
-            {"exercise": "Barbell Squat", "sets": 4, "reps": 6},
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 4, "reps": 8},
-            {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 8},
-            {"exercise": "Romanian Deadlift", "sets": 3, "reps": 10},
-            {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
-        ]
-        # Wednesday
-        program["Wednesday"] = [
-            {"exercise": "Barbell Deadlift", "sets": 4, "reps": 5},
-            {"exercise": "Standing Military Press", "sets": 4, "reps": 8},
-            {"exercise": "Pullups", "sets": 4, "reps": 8},
-            {"exercise": "Split Squat with Dumbbells", "sets": 3, "reps": 10},
-            {"exercise": "Dips - Triceps Version", "sets": 3, "reps": 10},
-        ]
-        # Friday
-        program["Friday"] = [
-            {"exercise": "Front Barbell Squat", "sets": 4, "reps": 8},
-            {"exercise": "Incline Dumbbell Press", "sets": 4, "reps": 10},
-            {"exercise": "Seated Cable Rows", "sets": 4, "reps": 10},
-            {"exercise": "Barbell Hip Thrust", "sets": 3, "reps": 12},
-            {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
-        ]
-        st.session_state.program_name = "Full Body 3-Day"
 
-    # =====================
-    # MSP3 Bodybuilding Templates
-    # =====================
-    elif template_name == "MSP3 BB 2-Day (Minimal Time)":
-        # Based on MSP3 2-Day Bodybuilding Program
-        # Day 1 - Full Body
-        program["Monday"] = [
-            {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 8},  # 5-10 @3 RIR
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 8},  # Vertical Pull
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 12},  # Horizontal Press
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 12},  # Horizontal Pull
-            {"exercise": "Romanian Deadlift", "sets": 3, "reps": 6},  # Hip Hinge
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12},
-        ]
-        # Day 2 - Full Body
-        program["Thursday"] = [
-            {"exercise": "Barbell Squat", "sets": 3, "reps": 6},  # 4-8 @3 RIR
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
-            {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
-            {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
-            {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
-            {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
-            {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12},  # Rear Delt
-        ]
-        st.session_state.program_name = "MSP3 BB 2-Day (4.5-6 sets/muscle)"
-
-    elif template_name == "MSP3 BB 3-Day (4-Day Rotation)":
-        # MSP3 3-Day is actually a 4-day rotation done 3x/week
-        program["Monday"] = [  # Day 1
-            {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 8},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 8},
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 12},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 15},
-            {"exercise": "Hyperextensions (Back Extensions)", "sets": 3, "reps": 10},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12},
-        ]
-        program["Wednesday"] = [  # Day 2
-            {"exercise": "Barbell Squat", "sets": 3, "reps": 6},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
-            {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
-            {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
-            {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
-            {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
-            {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12},
-        ]
-        program["Friday"] = [  # Day 3
-            {"exercise": "Romanian Deadlift", "sets": 3, "reps": 6},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 15},
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 8},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 8},
-            {"exercise": "Standing Military Press", "sets": 3, "reps": 12},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 15},
-        ]
-        st.session_state.program_name = "MSP3 BB 3-Day (8-11 sets/muscle avg)"
-
-    elif template_name == "MSP3 BB 4-Day":
-        # Day 1 - Chest/Back Focus
-        program["Monday"] = [
-            {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 8},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 8},
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 12},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 15},
-            {"exercise": "Hyperextensions (Back Extensions)", "sets": 3, "reps": 10},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12},
-        ]
-        # Day 2 - Legs/Arms Focus
-        program["Tuesday"] = [
-            {"exercise": "Barbell Squat", "sets": 3, "reps": 6},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
-            {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
-            {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
-            {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
-            {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
-            {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12},
-        ]
-        # Day 3 - Hip Hinge/Upper
-        program["Thursday"] = [
-            {"exercise": "Romanian Deadlift", "sets": 3, "reps": 6},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 15},
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 8},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 8},
-            {"exercise": "Standing Military Press", "sets": 3, "reps": 12},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 15},
-        ]
-        # Day 4 - Arms/Legs
-        program["Friday"] = [
-            {"exercise": "Side Lateral Raise", "sets": 3, "reps": 15},
-            {"exercise": "Straight-Arm Dumbbell Pullover", "sets": 3, "reps": 15},
-            {"exercise": "Incline Dumbbell Curl", "sets": 3, "reps": 15},
-            {"exercise": "Triceps Pushdown", "sets": 3, "reps": 15},
-            {"exercise": "Leg Press", "sets": 3, "reps": 10},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
-            {"exercise": "Leg Extensions", "sets": 3, "reps": 15},
-        ]
-        st.session_state.program_name = "MSP3 BB 4-Day (10.5-15 sets/muscle)"
-
-    elif template_name == "MSP3 BB 5-Day":
-        # Day 1 - Chest/Back/Posterior Chain
-        program["Monday"] = [
-            {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 8},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 8},
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 12},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 15},
-            {"exercise": "Hyperextensions (Back Extensions)", "sets": 3, "reps": 10},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12},
-        ]
-        # Day 2 - Legs/Arms
-        program["Tuesday"] = [
-            {"exercise": "Barbell Squat", "sets": 3, "reps": 6},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
-            {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
-            {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
-            {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
-            {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
-            {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12},
-        ]
-        # Day 3 - Hip Hinge/Upper
-        program["Wednesday"] = [
-            {"exercise": "Romanian Deadlift", "sets": 3, "reps": 6},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 15},
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 8},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 8},
-            {"exercise": "Standing Military Press", "sets": 3, "reps": 12},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 15},
-        ]
-        # Day 4 - Arms/Legs
-        program["Thursday"] = [
-            {"exercise": "Side Lateral Raise", "sets": 3, "reps": 15},
-            {"exercise": "Straight-Arm Dumbbell Pullover", "sets": 3, "reps": 15},
-            {"exercise": "Incline Dumbbell Curl", "sets": 3, "reps": 15},
-            {"exercise": "Triceps Pushdown", "sets": 3, "reps": 15},
-            {"exercise": "Leg Press", "sets": 3, "reps": 10},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
-            {"exercise": "Leg Extensions", "sets": 3, "reps": 15},
-        ]
-        # Day 5 - Split Squat/Upper Accessory
-        program["Friday"] = [
-            {"exercise": "Split Squat with Dumbbells", "sets": 3, "reps": 8},
-            {"exercise": "Crunches", "sets": 3, "reps": 15},  # Abs
-            {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 10},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 10},
-            {"exercise": "Palms-Up Barbell Wrist Curl Over A Bench", "sets": 3, "reps": 12},
-            {"exercise": "Palms-Down Wrist Curl Over A Bench", "sets": 3, "reps": 12},
-            {"exercise": "Barbell Shrug", "sets": 3, "reps": 12},
-        ]
-        st.session_state.program_name = "MSP3 BB 5-Day (12-18 sets/muscle)"
-
-    elif template_name == "MSP3 BB 6-Day":
-        # Day 1
-        program["Monday"] = [
-            {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 8},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 8},
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 12},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 15},
-            {"exercise": "Hyperextensions (Back Extensions)", "sets": 3, "reps": 10},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 12},
-        ]
-        # Day 2
-        program["Tuesday"] = [
-            {"exercise": "Barbell Squat", "sets": 3, "reps": 6},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
-            {"exercise": "Leg Extensions", "sets": 3, "reps": 12},
-            {"exercise": "Side Lateral Raise", "sets": 3, "reps": 12},
-            {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
-            {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 12},
-            {"exercise": "Lying Rear Delt Raise", "sets": 3, "reps": 12},
-        ]
-        # Day 3
-        program["Wednesday"] = [
-            {"exercise": "Romanian Deadlift", "sets": 3, "reps": 6},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 8},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 15},
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 3, "reps": 8},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 8},
-            {"exercise": "Standing Military Press", "sets": 3, "reps": 12},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 15},
-        ]
-        # Day 4
-        program["Thursday"] = [
-            {"exercise": "Side Lateral Raise", "sets": 3, "reps": 15},
-            {"exercise": "Straight-Arm Dumbbell Pullover", "sets": 3, "reps": 15},
-            {"exercise": "Incline Dumbbell Curl", "sets": 3, "reps": 15},
-            {"exercise": "Triceps Pushdown", "sets": 3, "reps": 15},
-            {"exercise": "Leg Press", "sets": 3, "reps": 10},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 15},
-            {"exercise": "Leg Extensions", "sets": 3, "reps": 15},
-        ]
-        # Day 5
-        program["Friday"] = [
-            {"exercise": "Incline Dumbbell Press", "sets": 3, "reps": 10},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 10},
-            {"exercise": "Dips - Chest Version", "sets": 3, "reps": 12},
-            {"exercise": "Crunches", "sets": 3, "reps": 15},
-            {"exercise": "Barbell Hip Thrust", "sets": 3, "reps": 10},
-            {"exercise": "Standing Calf Raises", "sets": 3, "reps": 12},
-            {"exercise": "Lying Leg Curls", "sets": 3, "reps": 10},
-        ]
-        # Day 6
-        program["Saturday"] = [
-            {"exercise": "Split Squat with Dumbbells", "sets": 3, "reps": 8},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 12},
-            {"exercise": "Dumbbell Bicep Curl", "sets": 3, "reps": 10},
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 3, "reps": 10},
-            {"exercise": "Palms-Down Wrist Curl Over A Bench", "sets": 3, "reps": 12},
-            {"exercise": "Palms-Up Barbell Wrist Curl Over A Bench", "sets": 3, "reps": 12},
-            {"exercise": "Barbell Shrug", "sets": 3, "reps": 12},
-        ]
-        st.session_state.program_name = "MSP3 BB 6-Day (15-21 sets/muscle)"
-
-    # =====================
-    # MSP3 Powerlifting Templates
-    # =====================
-    elif template_name == "MSP3 PL 3-Day Volume":
-        # Day 1 - Squat + Bench
-        program["Monday"] = [
-            {"exercise": "Barbell Squat", "sets": 1, "reps": 1},  # Single @ 5-8 RPE
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 1, "reps": 1},  # Single
-            {"exercise": "Leg Press", "sets": 3, "reps": 8},  # Machine Squat Variant
-            {"exercise": "Hyperextensions (Back Extensions)", "sets": 4, "reps": 12},
-            {"exercise": "Dumbbell Bench Press", "sets": 4, "reps": 10},  # Horizontal Press
-            {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 12},  # Horizontal Pull
-        ]
-        # Day 2 - Bench (Secondary)
-        program["Wednesday"] = [
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 1, "reps": 1},  # Single
-            {"exercise": "Leg Press", "sets": 3, "reps": 8},
-            {"exercise": "Standing Military Press", "sets": 4, "reps": 10},  # Vertical Press
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 4, "reps": 12},  # Vertical Pull
-            {"exercise": "Cable Crossover", "sets": 4, "reps": 12},  # Chest Isolation
-            {"exercise": "Lying Leg Curls", "sets": 4, "reps": 12},
-        ]
-        # Day 3 - Deadlift + Bench
-        program["Friday"] = [
-            {"exercise": "Barbell Deadlift", "sets": 1, "reps": 1},  # Single @ 5-8 RPE
-            {"exercise": "Romanian Deadlift", "sets": 3, "reps": 8},  # Hip Hinge Variant
-            {"exercise": "Close-Grip Barbell Bench Press", "sets": 4, "reps": 8},  # Bench Variant
-            {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 12},
-            {"exercise": "Leg Extensions", "sets": 4, "reps": 12},
-            {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 4, "reps": 12},
-        ]
-        st.session_state.program_name = "MSP3 PL 3-Day Volume Phase"
-
-    elif template_name == "MSP3 PL 4-Day Volume":
-        # Day 1 - Squat
-        program["Monday"] = [
-            {"exercise": "Barbell Squat", "sets": 1, "reps": 1},  # Single
-            {"exercise": "Front Barbell Squat", "sets": 4, "reps": 8},  # Squat Variant
-            {"exercise": "Hyperextensions (Back Extensions)", "sets": 4, "reps": 12},
-            {"exercise": "Leg Extensions", "sets": 4, "reps": 12},
-            {"exercise": "Bent Over Barbell Row", "sets": 3, "reps": 12},
-        ]
-        # Day 2 - Bench
-        program["Tuesday"] = [
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 1, "reps": 1},  # Single
-            {"exercise": "Close-Grip Barbell Bench Press", "sets": 4, "reps": 8},  # Bench Variant
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 4, "reps": 12},
-            {"exercise": "Cable Crossover", "sets": 4, "reps": 12},
-            {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
-        ]
-        # Day 3 - Deadlift
-        program["Thursday"] = [
-            {"exercise": "Barbell Deadlift", "sets": 1, "reps": 1},  # Single
-            {"exercise": "Romanian Deadlift", "sets": 3, "reps": 8},  # Hip Hinge Variant
-            {"exercise": "Leg Press", "sets": 3, "reps": 8},  # Machine Squat Variant
-            {"exercise": "Lying Leg Curls", "sets": 4, "reps": 12},
-            {"exercise": "Bent Over Barbell Row", "sets": 4, "reps": 12},
-        ]
-        # Day 4 - Bench (Secondary)
-        program["Friday"] = [
-            {"exercise": "Barbell Bench Press - Medium Grip", "sets": 1, "reps": 1},  # Single
-            {"exercise": "Incline Dumbbell Press", "sets": 4, "reps": 10},  # Horizontal Press
-            {"exercise": "Wide-Grip Lat Pulldown", "sets": 4, "reps": 12},
-            {"exercise": "Standing Military Press", "sets": 3, "reps": 10},
-            {"exercise": "Cable Crossover", "sets": 3, "reps": 12},
-            {"exercise": "Cable Rope Overhead Triceps Extension", "sets": 3, "reps": 12},
-        ]
-        st.session_state.program_name = "MSP3 PL 4-Day Volume Phase"
+# CLEANUP: Delete from here to render_muscle_balance function
+# This section will be removed
 
 
 def render_muscle_balance(hyp_sets, exercises):
@@ -4384,9 +3944,7 @@ def render_muscle_balance(hyp_sets, exercises):
     pull_total = sum(sets for m, sets in muscle_totals.items() if m in pull_muscles)
 
     # Calculate upper vs lower
-    upper_muscles = (
-        push_muscles | pull_muscles | {"Abdominals", "Neck"}
-    )
+    upper_muscles = push_muscles | pull_muscles | {"Abdominals", "Neck"}
     lower_muscles = {
         "Quadriceps",
         "Glutes",
@@ -4556,108 +4114,125 @@ def render_custom_exercises():
     """Render the custom exercises management view."""
     st.header("➕ Custom Exercises")
     st.caption("Add your own exercises to the library")
-    
+
     # Available muscle groups (from free-exercise-db)
     MUSCLE_OPTIONS = [
-        "abdominals", "abductors", "adductors", "biceps", "calves", 
-        "chest", "forearms", "glutes", "hamstrings", "lats", 
-        "lower back", "middle back", "neck", "quadriceps", 
-        "shoulders", "traps", "triceps"
+        "abdominals",
+        "abductors",
+        "adductors",
+        "biceps",
+        "calves",
+        "chest",
+        "forearms",
+        "glutes",
+        "hamstrings",
+        "lats",
+        "lower back",
+        "middle back",
+        "neck",
+        "quadriceps",
+        "shoulders",
+        "traps",
+        "triceps",
     ]
-    
-    tab_add, tab_import, tab_manage = st.tabs(["✏️ Add Manually", "📥 Import JSON", "📋 Manage"])
-    
+
+    tab_add, tab_import, tab_manage = st.tabs(
+        ["✏️ Add Manually", "📥 Import JSON", "📋 Manage"]
+    )
+
     with tab_add:
         st.subheader("Add New Exercise")
-        
+
         # Source name
         existing_sources = list(st.session_state.custom_exercises.keys())
         source_options = existing_sources + ["+ Create new source"]
-        
+
         source_selection = st.selectbox(
             "Source Collection *",
             options=source_options if existing_sources else ["+ Create new source"],
-            help="Group your exercises by source (e.g., 'my_exercises', 'gym_machines')"
+            help="Group your exercises by source (e.g., 'my_exercises', 'gym_machines')",
         )
-        
+
         if source_selection == "+ Create new source":
             source_name = st.text_input(
                 "New Source Name *",
                 placeholder="e.g., my_exercises",
-                help="Use lowercase with underscores, no spaces"
+                help="Use lowercase with underscores, no spaces",
             )
             # Clean the source name
             if source_name:
                 import re
-                source_name = re.sub(r'[^a-zA-Z0-9_]', '_', source_name.lower())
+
+                source_name = re.sub(r"[^a-zA-Z0-9_]", "_", source_name.lower())
         else:
             source_name = source_selection
-        
+
         st.markdown("---")
-        
+
         # Required fields
         st.markdown("**Required Fields**")
-        
+
         exercise_name = st.text_input(
-            "Exercise Name *",
-            placeholder="e.g., Cable Lateral Raise"
+            "Exercise Name *", placeholder="e.g., Cable Lateral Raise"
         )
-        
+
         primary_muscles = st.multiselect(
             "Primary Muscles *",
             options=MUSCLE_OPTIONS,
-            help="Select the main muscle(s) targeted by this exercise"
+            help="Select the main muscle(s) targeted by this exercise",
         )
-        
+
         secondary_muscles = st.multiselect(
             "Secondary Muscles",
             options=[m for m in MUSCLE_OPTIONS if m not in primary_muscles],
-            help="Select synergist muscles (optional but recommended)"
+            help="Select synergist muscles (optional but recommended)",
         )
-        
+
         st.markdown("---")
         st.markdown("**Optional Fields**")
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             category = st.selectbox(
                 "Category",
-                options=["", "strength", "stretching", "plyometrics", "cardio", "strongman", "powerlifting", "olympic weightlifting"],
-                index=0
+                options=[
+                    "",
+                    "strength",
+                    "stretching",
+                    "plyometrics",
+                    "cardio",
+                    "strongman",
+                    "powerlifting",
+                    "olympic weightlifting",
+                ],
+                index=0,
             )
-            
+
             level = st.selectbox(
-                "Level",
-                options=["", "beginner", "intermediate", "expert"],
-                index=0
+                "Level", options=["", "beginner", "intermediate", "expert"], index=0
             )
-            
+
             mechanic = st.selectbox(
-                "Mechanic",
-                options=["", "compound", "isolation"],
-                index=0
+                "Mechanic", options=["", "compound", "isolation"], index=0
             )
-        
+
         with col2:
             force = st.selectbox(
-                "Force",
-                options=["", "push", "pull", "static"],
-                index=0
+                "Force", options=["", "push", "pull", "static"], index=0
             )
-            
+
             equipment = st.text_input(
-                "Equipment",
-                placeholder="e.g., cable, dumbbell, barbell"
+                "Equipment", placeholder="e.g., cable, dumbbell, barbell"
             )
-        
+
         # Instructions
         instructions_text = st.text_area(
             "Instructions (one step per line)",
             placeholder="Step 1: ...\nStep 2: ...\nStep 3: ...",
-            height=100
+            height=100,
         )
-        
+
         # Add button
         if st.button("➕ Add Exercise", type="primary"):
             # Validation
@@ -4668,7 +4243,7 @@ def render_custom_exercises():
                 errors.append("Exercise name is required")
             if not primary_muscles:
                 errors.append("At least one primary muscle is required")
-            
+
             if errors:
                 for error in errors:
                     st.error(error)
@@ -4679,7 +4254,7 @@ def render_custom_exercises():
                     "primaryMuscles": primary_muscles,
                     "secondaryMuscles": secondary_muscles,
                 }
-                
+
                 # Add optional fields if provided
                 if category:
                     new_exercise["category"] = category
@@ -4693,16 +4268,19 @@ def render_custom_exercises():
                     new_exercise["equipment"] = equipment
                 if instructions_text.strip():
                     new_exercise["instructions"] = [
-                        line.strip() for line in instructions_text.split('\n') 
+                        line.strip()
+                        for line in instructions_text.split("\n")
                         if line.strip()
                     ]
-                
+
                 if add_custom_exercise(source_name, new_exercise):
                     st.success(f"✅ Added '{exercise_name}' to [{source_name}]")
                     st.rerun()
                 else:
-                    st.error(f"Exercise '{exercise_name}' already exists in [{source_name}]")
-    
+                    st.error(
+                        f"Exercise '{exercise_name}' already exists in [{source_name}]"
+                    )
+
     with tab_import:
         st.subheader("Import from JSON")
         st.markdown(
@@ -4716,62 +4294,67 @@ def render_custom_exercises():
             `equipment`, `instructions`, `category`, `images`
             """
         )
-        
+
         # Source name for import
         existing_sources = list(st.session_state.custom_exercises.keys())
         import_source_options = existing_sources + ["+ Create new source"]
-        
+
         import_source_selection = st.selectbox(
             "Import to Source *",
-            options=import_source_options if existing_sources else ["+ Create new source"],
-            key="import_source_select"
+            options=(
+                import_source_options if existing_sources else ["+ Create new source"]
+            ),
+            key="import_source_select",
         )
-        
+
         if import_source_selection == "+ Create new source":
             import_source_name = st.text_input(
                 "New Source Name *",
                 placeholder="e.g., imported_exercises",
-                key="import_source_name"
+                key="import_source_name",
             )
             if import_source_name:
                 import re
-                import_source_name = re.sub(r'[^a-zA-Z0-9_]', '_', import_source_name.lower())
+
+                import_source_name = re.sub(
+                    r"[^a-zA-Z0-9_]", "_", import_source_name.lower()
+                )
         else:
             import_source_name = import_source_selection
-        
+
         # File upload
         uploaded_file = st.file_uploader(
-            "Upload JSON file",
-            type=["json"],
-            key="custom_exercise_json"
+            "Upload JSON file", type=["json"], key="custom_exercise_json"
         )
-        
+
         if uploaded_file and import_source_name:
             if st.button("📥 Import Exercises", type="primary"):
                 try:
                     json_data = json.load(uploaded_file)
-                    success, errors_count, error_msgs = import_custom_exercises_from_json(
-                        json_data, import_source_name
+                    success, errors_count, error_msgs = (
+                        import_custom_exercises_from_json(json_data, import_source_name)
                     )
-                    
+
                     if success > 0:
                         st.success(f"✅ Successfully imported {success} exercise(s)")
                     if errors_count > 0:
-                        st.warning(f"⚠️ {errors_count} exercise(s) could not be imported")
+                        st.warning(
+                            f"⚠️ {errors_count} exercise(s) could not be imported"
+                        )
                         with st.expander("View errors"):
                             for msg in error_msgs:
                                 st.text(f"• {msg}")
-                    
+
                     if success > 0:
                         st.rerun()
-                        
+
                 except json.JSONDecodeError as e:
                     st.error(f"Invalid JSON: {e}")
-        
+
         # Example JSON
         with st.expander("📝 Example JSON format"):
             st.code(
-                '''[
+                """[
   {
     "name": "My Custom Exercise",
     "primaryMuscles": ["chest", "shoulders"],
@@ -4787,22 +4370,24 @@ def render_custom_exercises():
     ],
     "category": "strength"
   }
-]''',
-                language="json"
+]""",
+                language="json",
             )
-    
+
     with tab_manage:
         st.subheader("Manage Custom Exercises")
-        
+
         custom_exercises = st.session_state.custom_exercises
-        
+
         if not custom_exercises:
-            st.info("No custom exercises added yet. Use the 'Add Manually' or 'Import JSON' tabs to add exercises.")
+            st.info(
+                "No custom exercises added yet. Use the 'Add Manually' or 'Import JSON' tabs to add exercises."
+            )
         else:
             # Summary
             total_custom = sum(len(exs) for exs in custom_exercises.values())
             st.metric("Total Custom Exercises", total_custom)
-            
+
             # Export all
             col1, col2 = st.columns([1, 3])
             with col1:
@@ -4814,14 +4399,16 @@ def render_custom_exercises():
                         "💾 Download JSON",
                         data=json.dumps(export_data, indent=2),
                         file_name="custom_exercises.json",
-                        mime="application/json"
+                        mime="application/json",
                     )
-            
+
             st.markdown("---")
-            
+
             # List by source
             for source_name, exercises in custom_exercises.items():
-                with st.expander(f"📁 {source_name} ({len(exercises)} exercises)", expanded=True):
+                with st.expander(
+                    f"📁 {source_name} ({len(exercises)} exercises)", expanded=True
+                ):
                     # Export this source
                     col1, col2 = st.columns([3, 1])
                     with col2:
@@ -4830,23 +4417,29 @@ def render_custom_exercises():
                             data=json.dumps(exercises, indent=2),
                             file_name=f"{source_name}_exercises.json",
                             mime="application/json",
-                            key=f"export_{source_name}"
+                            key=f"export_{source_name}",
                         )
-                    
+
                     # List exercises
                     for ex in exercises:
                         col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
-                        
+
                         with col1:
                             st.markdown(f"**{ex['name']}**")
                         with col2:
                             primary = ", ".join(ex.get("primaryMuscles", []))
                             st.caption(f"🎯 {primary}")
                         with col3:
-                            secondary = ", ".join(ex.get("secondaryMuscles", [])) or "none"
+                            secondary = (
+                                ", ".join(ex.get("secondaryMuscles", [])) or "none"
+                            )
                             st.caption(f"↳ {secondary}")
                         with col4:
-                            if st.button("🗑️", key=f"del_{source_name}_{ex['name']}", help="Delete"):
+                            if st.button(
+                                "🗑️",
+                                key=f"del_{source_name}_{ex['name']}",
+                                help="Delete",
+                            ):
                                 remove_custom_exercise(source_name, ex["name"])
                                 st.rerun()
 
@@ -4854,100 +4447,112 @@ def render_custom_exercises():
 def render_exercise_library(exercises):
     """Render an exercise library browser with search, images, and instructions."""
     # Count custom vs base exercises
-    custom_count = sum(len(exs) for exs in st.session_state.get("custom_exercises", {}).values())
+    custom_count = sum(
+        len(exs) for exs in st.session_state.get("custom_exercises", {}).values()
+    )
     base_count = len([e for e in exercises if e.get("_source") == "free-exercise-db"])
-    
+
     st.header("📚 Exercise Library")
     st.caption(
         f"Browse {len(exercises)} exercises ({custom_count} custom, {base_count} from "
         "[free-exercise-db](https://github.com/yuhonas/free-exercise-db)) "
         "• [Browse online](https://yuhonas.github.io/free-exercise-db/)"
     )
-    
+
     # Search and filter
     col1, col2, col3, col4, col5 = st.columns(5)
-    
+
     with col1:
         search_term = st.text_input("🔍 Search exercises", key="lib_search")
-    
+
     with col2:
         # Source filter
-        sources = ["All", "free-exercise-db"] + list(st.session_state.get("custom_exercises", {}).keys())
+        sources = ["All", "free-exercise-db"] + list(
+            st.session_state.get("custom_exercises", {}).keys()
+        )
         selected_source = st.selectbox("Source", sources, key="lib_source")
-    
+
     with col3:
-        categories = ["All"] + sorted(set(
-            ex.get("category", "Unknown").title() 
-            for ex in exercises 
-            if ex.get("category")
-        ))
+        categories = ["All"] + sorted(
+            set(
+                ex.get("category", "Unknown").title()
+                for ex in exercises
+                if ex.get("category")
+            )
+        )
         selected_category = st.selectbox("Category", categories, key="lib_category")
-    
+
     with col4:
-        muscles = ["All"] + sorted(set(
-            muscle.title()
-            for ex in exercises
-            for muscle in ex.get("primaryMuscles", [])
-            if muscle
-        ))
+        muscles = ["All"] + sorted(
+            set(
+                muscle.title()
+                for ex in exercises
+                for muscle in ex.get("primaryMuscles", [])
+                if muscle
+            )
+        )
         selected_muscle = st.selectbox("Primary Muscle", muscles, key="lib_muscle")
-    
+
     with col5:
-        equipment_list = ["All"] + sorted(set(
-            ex.get("equipment", "Unknown").title()
-            for ex in exercises
-            if ex.get("equipment")
-        ))
-        selected_equipment = st.selectbox("Equipment", equipment_list, key="lib_equipment")
-    
+        equipment_list = ["All"] + sorted(
+            set(
+                ex.get("equipment", "Unknown").title()
+                for ex in exercises
+                if ex.get("equipment")
+            )
+        )
+        selected_equipment = st.selectbox(
+            "Equipment", equipment_list, key="lib_equipment"
+        )
+
     # Filter exercises
     filtered = exercises
-    
+
     if search_term:
         search_lower = search_term.lower()
         filtered = [
-            ex for ex in filtered
+            ex
+            for ex in filtered
             if search_lower in ex.get("name", "").lower()
             or search_lower in " ".join(ex.get("instructions", [])).lower()
         ]
-    
+
     if selected_source != "All":
-        filtered = [
-            ex for ex in filtered
-            if ex.get("_source") == selected_source
-        ]
-    
+        filtered = [ex for ex in filtered if ex.get("_source") == selected_source]
+
     if selected_category != "All":
         filtered = [
-            ex for ex in filtered
-            if ex.get("category", "").title() == selected_category
+            ex for ex in filtered if ex.get("category", "").title() == selected_category
         ]
-    
+
     if selected_muscle != "All":
         filtered = [
-            ex for ex in filtered
-            if selected_muscle.lower() in [m.lower() for m in ex.get("primaryMuscles", [])]
+            ex
+            for ex in filtered
+            if selected_muscle.lower()
+            in [m.lower() for m in ex.get("primaryMuscles", [])]
         ]
-    
+
     if selected_equipment != "All":
         filtered = [
-            ex for ex in filtered
+            ex
+            for ex in filtered
             if ex.get("equipment", "").title() == selected_equipment
         ]
-    
+
     st.caption(f"Showing {len(filtered)} exercises")
-    
+
     # Pagination
     items_per_page = 12
     total_pages = max(1, (len(filtered) + items_per_page - 1) // items_per_page)
-    
+
     if "lib_page" not in st.session_state:
         st.session_state.lib_page = 0
-    
+
     # Reset page if filters changed
     if len(filtered) <= st.session_state.lib_page * items_per_page:
         st.session_state.lib_page = 0
-    
+
     # Page navigation
     col1, col2, col3 = st.columns([1, 3, 1])
     with col1:
@@ -4955,20 +4560,23 @@ def render_exercise_library(exercises):
             st.session_state.lib_page -= 1
             st.rerun()
     with col2:
-        st.markdown(f"<center>Page {st.session_state.lib_page + 1} of {total_pages}</center>", unsafe_allow_html=True)
+        st.markdown(
+            f"<center>Page {st.session_state.lib_page + 1} of {total_pages}</center>",
+            unsafe_allow_html=True,
+        )
     with col3:
         if st.button("Next ▶", disabled=st.session_state.lib_page >= total_pages - 1):
             st.session_state.lib_page += 1
             st.rerun()
-    
+
     # Display exercises in a grid
     start_idx = st.session_state.lib_page * items_per_page
     end_idx = min(start_idx + items_per_page, len(filtered))
     page_exercises = filtered[start_idx:end_idx]
-    
+
     # Create a 3-column grid
     cols = st.columns(3)
-    
+
     for i, exercise in enumerate(page_exercises):
         with cols[i % 3]:
             with st.container():
@@ -4978,7 +4586,7 @@ def render_exercise_library(exercises):
                     st.markdown(f"**{exercise.get('name', 'Unknown')}** `[{source}]`")
                 else:
                     st.markdown(f"**{exercise.get('name', 'Unknown')}**")
-                
+
                 # Show first image as thumbnail (only for free-exercise-db)
                 images = exercise.get("images", [])
                 if images and source == "free-exercise-db":
@@ -4986,34 +4594,36 @@ def render_exercise_library(exercises):
                     st.image(thumb_url, use_container_width=True)
                 elif source != "free-exercise-db":
                     st.info("📝 Custom exercise")
-                
+
                 # Quick info
                 primary = get_primary_muscle(exercise)
                 level = exercise.get("level", "N/A")
                 equipment = exercise.get("equipment", "N/A")
-                
+
                 st.caption(f"🎯 {primary} | 📊 {level.title() if level else 'N/A'}")
                 st.caption(f"🏋️ {equipment.title() if equipment else 'N/A'}")
-                
+
                 # Expand for details
                 with st.expander("📋 Details"):
                     # Secondary muscles
                     secondary = get_secondary_muscles(exercise)
                     if secondary:
                         st.markdown(f"**Secondary:** {', '.join(secondary)}")
-                    
+
                     # All images
                     if len(images) > 1:
                         st.markdown("**Images:**")
-                        render_exercise_images(exercise, key_prefix=f"lib_{exercise.get('id', i)}")
-                    
+                        render_exercise_images(
+                            exercise, key_prefix=f"lib_{exercise.get('id', i)}"
+                        )
+
                     # Instructions
                     instructions = exercise.get("instructions", [])
                     if instructions:
                         st.markdown("**Instructions:**")
                         for j, step in enumerate(instructions, 1):
                             st.markdown(f"{j}. {step}")
-                
+
                 st.markdown("---")
 
 
@@ -5114,7 +4724,7 @@ def main():
     # Load exercise library and merge with custom exercises
     base_exercises = load_exercise_library()
     exercises = get_all_exercises(base_exercises)
-    
+
     # Create sorted list of exercise names (custom exercises first due to get_all_exercises order)
     # Use display names for the list but keep mapping to actual names
     exercise_names = [get_exercise_display_name(ex) for ex in exercises]
@@ -5130,15 +4740,10 @@ def main():
     view = st.sidebar.radio(
         "View",
         [
-            "📅 Weekly Editor",
-            "📚 Exercise Library",
-            "➕ Custom Exercises",
-            "👤 User Profile",
-            "🎯 1RM Manager",
-            "🎨 Program Designer",
-            "🔍 Program Analysis",
+            "📅 Weekly Editor",  # Includes compact profile in stats panel
+            "📚 Exercises & 1RM",  # Library + Custom + 1RM Manager
+            "📊 Analysis",  # Combined Program Designer + Analysis
             "📖 Guidelines",
-            "📊 Summary Only",
         ],
     )
 
@@ -5172,52 +4777,63 @@ def main():
     # Exercise search/filter in sidebar
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔍 Exercise Filter")
-    
+
     # Source filter (custom sources + free-exercise-db)
-    sources = ["All", "free-exercise-db"] + list(st.session_state.custom_exercises.keys())
+    sources = ["All", "free-exercise-db"] + list(
+        st.session_state.custom_exercises.keys()
+    )
     selected_source = st.sidebar.selectbox("Source", sources)
 
     # Category filter (using free-exercise-db format)
-    categories = sorted(set(
-        ex.get("category", "Unknown").title() 
-        for ex in exercises 
-        if ex.get("category")
-    ))
+    categories = sorted(
+        set(
+            ex.get("category", "Unknown").title()
+            for ex in exercises
+            if ex.get("category")
+        )
+    )
     selected_category = st.sidebar.selectbox("Category", ["All"] + categories)
 
     # Muscle filter (using primaryMuscles from free-exercise-db)
-    muscles = sorted(set(
-        muscle.title()
-        for ex in exercises
-        for muscle in ex.get("primaryMuscles", [])
-        if muscle
-    ))
+    muscles = sorted(
+        set(
+            muscle.title()
+            for ex in exercises
+            for muscle in ex.get("primaryMuscles", [])
+            if muscle
+        )
+    )
     selected_muscle = st.sidebar.selectbox("Target Muscle", ["All"] + muscles)
-    
+
     # Equipment filter
-    equipment_list = sorted(set(
-        ex.get("equipment", "Unknown").title()
-        for ex in exercises
-        if ex.get("equipment")
-    ))
+    equipment_list = sorted(
+        set(
+            ex.get("equipment", "Unknown").title()
+            for ex in exercises
+            if ex.get("equipment")
+        )
+    )
     selected_equipment = st.sidebar.selectbox("Equipment", ["All"] + equipment_list)
 
     # Apply filters
-    if selected_source != "All" or selected_category != "All" or selected_muscle != "All" or selected_equipment != "All":
+    if (
+        selected_source != "All"
+        or selected_category != "All"
+        or selected_muscle != "All"
+        or selected_equipment != "All"
+    ):
         filtered_exercises = [
             get_exercise_display_name(ex)
             for ex in exercises
-            if (
-                selected_source == "All"
-                or ex.get("_source") == selected_source
-            )
+            if (selected_source == "All" or ex.get("_source") == selected_source)
             and (
                 selected_category == "All"
                 or ex.get("category", "").title() == selected_category
             )
             and (
                 selected_muscle == "All"
-                or selected_muscle.lower() in [m.lower() for m in ex.get("primaryMuscles", [])]
+                or selected_muscle.lower()
+                in [m.lower() for m in ex.get("primaryMuscles", [])]
             )
             and (
                 selected_equipment == "All"
@@ -5279,38 +4895,54 @@ def main():
 
     if view == "📅 Weekly Editor":
         # Use the enhanced multi-week editor
-        render_weekly_editor_enhanced(exercises, exercise_names, display_to_name, name_to_display)
+        render_weekly_editor_enhanced(
+            exercises, exercise_names, display_to_name, name_to_display
+        )
 
-    elif view == "📚 Exercise Library":
-        render_exercise_library(exercises)
-    
-    elif view == "➕ Custom Exercises":
-        render_custom_exercises()
-    
-    elif view == "👤 User Profile":
-        render_user_profile()
-    
-    elif view == "🎯 1RM Manager":
-        render_1rm_manager(exercises, exercise_names, display_to_name)
+    elif view == "📚 Exercises & 1RM":
+        # Combined Exercise Library + Custom Exercises + 1RM Manager with tabs
+        st.header("📚 Exercises & 1RM Data")
+        lib_tab, custom_tab, rm_tab = st.tabs([
+            "🔍 Browse Library", 
+            "➕ My Custom Exercises",
+            "🎯 1RM Manager"
+        ])
+        
+        with lib_tab:
+            render_exercise_library(exercises)
+        
+        with custom_tab:
+            render_custom_exercises()
+        
+        with rm_tab:
+            st.caption("Track your 1RM values to get weight suggestions in the weekly editor")
+            render_1rm_manager(exercises, exercise_names, display_to_name)
 
-    elif view == "🎨 Program Designer":
+    elif view == "📊 Analysis":
+        # Combined Program Designer + Analysis with tabs
+        st.header("📊 Program Analysis")
         current_week_days = get_current_week_days()
         hyp_sets = calculate_hypertrophy_sets(current_week_days, exercises)
         str_sets = calculate_strength_sets(current_week_days, exercises)
-        render_program_designer(current_week_days, exercises, hyp_sets, str_sets)
-
-    elif view == "🔍 Program Analysis":
-        # Calculate fractional sets for analysis (current week)
-        current_week_days = get_current_week_days()
-        hyp_sets = calculate_hypertrophy_sets(current_week_days, exercises)
-        str_sets = calculate_strength_sets(current_week_days, exercises)
-        render_program_analysis(current_week_days, exercises, hyp_sets, str_sets)
+        
+        designer_tab, analysis_tab, balance_tab = st.tabs([
+            "🎨 Volume Check", "🔍 Detailed Analysis", "⚖️ Muscle Balance"
+        ])
+        
+        with designer_tab:
+            render_program_designer(current_week_days, exercises, hyp_sets, str_sets)
+        
+        with analysis_tab:
+            render_program_analysis(current_week_days, exercises, hyp_sets, str_sets)
+        
+        with balance_tab:
+            render_muscle_balance(hyp_sets, exercises)
 
     elif view == "📖 Guidelines":
         render_pyramid_guidelines()
 
     # Show summary section (except for views that have their own detailed analysis)
-    if view not in ["📖 Guidelines", "🔍 Program Analysis", "🎨 Program Designer"]:
+    if view not in ["📖 Guidelines", "📊 Analysis"]:
         st.markdown("---")
 
         # Calculate fractional sets for current week
