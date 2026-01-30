@@ -1535,6 +1535,90 @@ def render_day_editor_enhanced(
                 key=f"reps_{day}_{week_idx}",
             )
 
+        # 1RM section - inline add/edit
+        if selected_exercise:
+            current_1rm = st.session_state.exercise_1rm.get(selected_exercise, 0)
+            
+            with st.container():
+                st.markdown("**🎯 1RM & Weight Suggestion**")
+                
+                if current_1rm > 0:
+                    # Show current 1RM and suggested weight
+                    suggested_weight = get_weight_for_reps(current_1rm, reps)
+                    training_type = "Strength" if reps <= 6 else "Hypertrophy"
+                    pct = (suggested_weight / current_1rm) * 100
+                    
+                    col_rm, col_weight = st.columns(2)
+                    with col_rm:
+                        new_1rm = st.number_input(
+                            "1RM (kg)",
+                            min_value=0.0,
+                            max_value=500.0,
+                            value=float(current_1rm),
+                            step=2.5,
+                            key=f"1rm_{day}_{week_idx}",
+                            help="Your one-rep max for this exercise"
+                        )
+                        if new_1rm != current_1rm and new_1rm > 0:
+                            st.session_state.exercise_1rm[selected_exercise] = new_1rm
+                            st.rerun()
+                    with col_weight:
+                        st.metric(
+                            f"Suggested ({training_type})",
+                            f"{suggested_weight:.1f} kg",
+                            f"{pct:.0f}% of 1RM"
+                        )
+                else:
+                    # No 1RM set - offer to add one
+                    st.caption("No 1RM set - add one for weight suggestions")
+                    
+                    rm_method = st.radio(
+                        "Add 1RM",
+                        ["Enter directly", "Calculate from lift"],
+                        key=f"rm_method_{day}_{week_idx}",
+                        horizontal=True,
+                    )
+                    
+                    if rm_method == "Enter directly":
+                        new_1rm = st.number_input(
+                            "1RM (kg)",
+                            min_value=0.0,
+                            max_value=500.0,
+                            value=0.0,
+                            step=2.5,
+                            key=f"new_1rm_{day}_{week_idx}",
+                        )
+                        if new_1rm > 0:
+                            if st.button("💾 Save 1RM", key=f"save_1rm_{day}_{week_idx}"):
+                                st.session_state.exercise_1rm[selected_exercise] = new_1rm
+                                st.rerun()
+                    else:
+                        col_w, col_r = st.columns(2)
+                        with col_w:
+                            lift_weight = st.number_input(
+                                "Weight lifted (kg)",
+                                min_value=0.0,
+                                max_value=500.0,
+                                value=0.0,
+                                step=2.5,
+                                key=f"lift_weight_{day}_{week_idx}",
+                            )
+                        with col_r:
+                            lift_reps = st.number_input(
+                                "Reps completed",
+                                min_value=1,
+                                max_value=30,
+                                value=5,
+                                key=f"lift_reps_{day}_{week_idx}",
+                            )
+                        
+                        if lift_weight > 0:
+                            est_1rm = calculate_1rm_from_reps(lift_weight, lift_reps)
+                            st.info(f"Estimated 1RM: **{est_1rm:.1f} kg**")
+                            if st.button("💾 Save Est. 1RM", key=f"save_est_1rm_{day}_{week_idx}"):
+                                st.session_state.exercise_1rm[selected_exercise] = est_1rm
+                                st.rerun()
+
         # Real-time fractional set preview
         if selected_exercise:
             exercise = get_exercise_by_name(exercises, selected_exercise)
