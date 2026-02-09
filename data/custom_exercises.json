@@ -166,5 +166,155 @@
       "Cable_Step_Down/1.jpg"
     ],
     "id": "Cable_Step_Down"
+  },
+  {
+    "name": "Dumbbell Row to Press",
+    "force": "pull",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "dumbbell",
+    "primaryMuscles": [
+      "middle back",
+      "shoulders"
+    ],
+    "secondaryMuscles": [
+      "biceps",
+      "triceps",
+      "lats"
+    ],
+    "instructions": [
+      "Stand with feet hip-width apart, holding a dumbbell in each hand at your sides.",
+      "Hinge at the hips and bend forward to approximately 45 degrees, keeping your back straight.",
+      "Pull the dumbbells up to your sides in a rowing motion, squeezing your shoulder blades together.",
+      "From the top of the row position, rotate the dumbbells and press them overhead.",
+      "Lower the dumbbells back down, reverse the movement, and return to the starting position.",
+      "Repeat for the recommended amount of repetitions."
+    ],
+    "category": "strength",
+    "images": [
+      "Dumbbell_Row_to_Press/0.jpg",
+      "Dumbbell_Row_to_Press/1.jpg"
+    ],
+    "id": "Dumbbell_Row_to_Press"
+  },
+  {
+    "name": "Single Leg Deadlift to Stabilization",
+    "force": "push",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "dumbbell",
+    "primaryMuscles": [
+      "hamstrings",
+      "glutes"
+    ],
+    "secondaryMuscles": [
+      "lower back",
+      "abdominals",
+      "calves"
+    ],
+    "instructions": [
+      "Stand on one leg holding a dumbbell in the opposite hand.",
+      "Keeping your back straight, hinge at the hip and lower the dumbbell toward the ground.",
+      "Extend your free leg behind you for balance, keeping your body in a straight line.",
+      "Lower until your torso is approximately parallel to the ground.",
+      "Hold the bottom position for 2-3 seconds to stabilize.",
+      "Drive through your standing heel to return to the starting position.",
+      "Repeat for the recommended amount of repetitions, then switch sides."
+    ],
+    "category": "strength",
+    "images": [
+      "Single_Leg_Deadlift_to_Stabilization/0.jpg",
+      "Single_Leg_Deadlift_to_Stabilization/1.jpg"
+    ],
+    "id": "Single_Leg_Deadlift_to_Stabilization"
+  },
+  {
+    "name": "Dumbbell Side Lunge",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "compound",
+    "equipment": "dumbbell",
+    "primaryMuscles": [
+      "quadriceps",
+      "glutes"
+    ],
+    "secondaryMuscles": [
+      "adductors",
+      "hamstrings"
+    ],
+    "instructions": [
+      "Stand with your feet together, holding a dumbbell in each hand at your sides.",
+      "Take a wide step to the side with your right leg.",
+      "Lower your body by bending your right knee and pushing your hips back, keeping your left leg straight.",
+      "Keep your chest up and your weight on your right heel.",
+      "Push through your right heel to return to the starting position.",
+      "Repeat on the other side.",
+      "Alternate sides for the recommended amount of repetitions."
+    ],
+    "category": "strength",
+    "images": [
+      "Dumbbell_Side_Lunge/0.jpg",
+      "Dumbbell_Side_Lunge/1.jpg"
+    ],
+    "id": "Dumbbell_Side_Lunge"
+  },
+  {
+    "name": "Dumbbell Alternating Overhead Press",
+    "force": "push",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "dumbbell",
+    "primaryMuscles": [
+      "shoulders"
+    ],
+    "secondaryMuscles": [
+      "triceps",
+      "abdominals"
+    ],
+    "instructions": [
+      "Stand with your feet shoulder-width apart, holding a dumbbell in each hand at shoulder height.",
+      "Your palms should be facing forward with elbows bent at 90 degrees.",
+      "Press one dumbbell overhead until your arm is fully extended.",
+      "Lower that dumbbell back to shoulder height in a controlled manner.",
+      "As it descends, begin pressing the other dumbbell overhead.",
+      "Continue alternating arms for the recommended amount of repetitions.",
+      "Keep your core engaged throughout the movement to maintain stability."
+    ],
+    "category": "strength",
+    "images": [
+      "Dumbbell_Alternating_Overhead_Press/0.jpg",
+      "Dumbbell_Alternating_Overhead_Press/1.jpg"
+    ],
+    "id": "Dumbbell_Alternating_Overhead_Press"
+  },
+  {
+    "name": "Switch Jump to Kneeling Jump",
+    "force": "push",
+    "level": "advanced",
+    "mechanic": "compound",
+    "equipment": "body only",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "glutes",
+      "hamstrings",
+      "calves"
+    ],
+    "instructions": [
+      "Start in a lunge position with one foot forward and one foot back, both knees bent.",
+      "Explosively jump up, switching your legs in mid-air.",
+      "Land softly in a lunge position with the opposite leg forward.",
+      "After completing the switch jumps, transition to kneeling jumps.",
+      "From a kneeling position on both knees, explosively swing your arms and drive your hips forward to jump up to a standing position.",
+      "Land softly and return to the kneeling position.",
+      "Repeat the combination for the recommended amount of repetitions."
+    ],
+    "category": "plyometrics",
+    "images": [
+      "Switch_Jump_to_Kneeling_Jump/0.jpg",
+      "Switch_Jump_to_Kneeling_Jump/1.jpg"
+    ],
+    "id": "Switch_Jump_to_Kneeling_Jump"
   }
 ]
