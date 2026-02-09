@@ -54,6 +54,94 @@ st.markdown(
 # Days of the week
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
+# Big 5 compound lift categories with name patterns for matching
+BIG_5_CATEGORIES = {
+    "Squat": ["squat"],
+    "Deadlift": ["deadlift"],
+    "Bench Press": ["bench press"],
+    "Overhead Press": ["military press", "overhead press", "shoulder press"],
+    "Row": ["barbell row", "pendlay row", "t-bar row", "seal row"],
+}
+
+# Flat list derived from categories (used by is_big5_exercise)
+BIG_5_PATTERNS = [p for patterns in BIG_5_CATEGORIES.values() for p in patterns]
+
+
+def is_big5_exercise(exercise_name):
+    """Check if an exercise matches a Big 5 compound lift pattern."""
+    name_lower = exercise_name.lower()
+    return any(pattern in name_lower for pattern in BIG_5_PATTERNS)
+
+
+def get_big5_category(exercise_name):
+    """Get the Big 5 category for an exercise, or None if not a Big 5 lift."""
+    name_lower = exercise_name.lower()
+    for category, patterns in BIG_5_CATEGORIES.items():
+        if any(p in name_lower for p in patterns):
+            return category
+    return None
+
+
+def get_big5_coverage(program):
+    """
+    Check which Big 5 categories are covered in the program at strength rep ranges.
+
+    Args:
+        program: Dict of day -> list of exercise entries
+
+    Returns:
+        Tuple of (covered_dict, missing_list):
+        - covered: {category: [{exercise, day, sets, reps}, ...]}
+        - missing: [category_name, ...]
+    """
+    covered = {}
+    missing = []
+
+    for category, patterns in BIG_5_CATEGORIES.items():
+        matching = []
+        for day in DAYS:
+            for entry in program.get(day, []):
+                if entry["reps"] <= 6:
+                    name_lower = entry["exercise"].lower()
+                    if any(p in name_lower for p in patterns):
+                        matching.append(
+                            {
+                                "exercise": entry["exercise"],
+                                "day": day,
+                                "sets": entry["sets"],
+                                "reps": entry["reps"],
+                            }
+                        )
+
+        if matching:
+            covered[category] = matching
+        else:
+            missing.append(category)
+
+    return covered, missing
+
+
+# All muscle groups available in the exercise database
+ALL_MUSCLE_GROUPS = [
+    "abdominals",
+    "abductors",
+    "adductors",
+    "biceps",
+    "calves",
+    "chest",
+    "forearms",
+    "glutes",
+    "hamstrings",
+    "lats",
+    "lower back",
+    "middle back",
+    "neck",
+    "quadriceps",
+    "shoulders",
+    "traps",
+    "triceps",
+]
+
 # Week types for mesocycle planning
 WEEK_TYPES = {
     "training": {
@@ -1773,6 +1861,127 @@ def render_user_profile_compact():
                 st.rerun()
 
 
+def render_analysis_filters(exercises):
+    """Render analysis tracking filters for muscle groups and strength exercises."""
+    profile = st.session_state.user_profile
+
+    with st.expander("🔬 Analysis Filters", expanded=False):
+        # --- Hypertrophy Muscle Tracking ---
+        st.markdown("**💪 Hypertrophy Muscles**")
+        st.caption("Select which muscle groups to include in volume analysis")
+
+        current_hyp = profile.get("hypertrophy_tracked_muscles")
+        all_muscles = [m.title() for m in ALL_MUSCLE_GROUPS]
+        is_tracking_all = current_hyp is None
+
+        track_all_hyp = st.checkbox(
+            "Track all muscle groups",
+            value=is_tracking_all,
+            key="hyp_track_all_cb",
+        )
+
+        if track_all_hyp:
+            if not is_tracking_all:
+                st.session_state.user_profile["hypertrophy_tracked_muscles"] = None
+                st.rerun()
+        else:
+            # Show muscle group picker
+            if is_tracking_all:
+                default_muscles = all_muscles
+            else:
+                default_muscles = [
+                    m.title() for m in current_hyp if m.title() in all_muscles
+                ]
+
+            selected_muscles = st.multiselect(
+                "Tracked muscles",
+                options=all_muscles,
+                default=default_muscles,
+                key="hyp_muscles_ms",
+                label_visibility="collapsed",
+            )
+            # Sync selection to profile
+            st.session_state.user_profile["hypertrophy_tracked_muscles"] = [
+                m.lower() for m in selected_muscles
+            ]
+
+        st.markdown("---")
+
+        # --- Strength Exercise Tracking ---
+        st.markdown("**🏋️ Strength Exercises**")
+        st.caption("Select which exercises to track for strength volume")
+
+        mode = profile.get("strength_tracking_mode", "compound")
+        mode_options = ["compound", "all", "custom"]
+        mode_labels = {
+            "compound": "Big 5 lifts (squat, deadlift, bench, OHP, row)",
+            "all": "All exercises",
+            "custom": "Custom selection",
+        }
+
+        new_mode = st.radio(
+            "Strength tracking mode",
+            options=mode_options,
+            format_func=lambda x: mode_labels[x],
+            index=mode_options.index(mode) if mode in mode_options else 0,
+            key="str_mode_radio",
+            label_visibility="collapsed",
+        )
+
+        if new_mode != mode:
+            st.session_state.user_profile["strength_tracking_mode"] = new_mode
+            st.rerun()
+
+        if new_mode == "compound":
+            # Show Big 5 coverage by category
+            current_program = {}
+            if st.session_state.program_weeks:
+                week_idx = st.session_state.current_week
+                current_program = st.session_state.program_weeks[week_idx]["days"]
+
+            covered, missing = get_big5_coverage(current_program)
+
+            for cat in BIG_5_CATEGORIES:
+                if cat in covered:
+                    exs = covered[cat]
+                    ex_names = sorted(set(e["exercise"] for e in exs))
+                    st.caption(f"  ✅ {cat}: {', '.join(ex_names)}")
+                else:
+                    st.caption(f"  ❌ {cat}: *not in program*")
+
+            if missing:
+                st.warning(
+                    f"Missing {len(missing)}/{len(BIG_5_CATEGORIES)}: "
+                    f"{', '.join(missing)}"
+                )
+
+        elif new_mode == "custom":
+            current_custom = profile.get("strength_tracked_exercises", [])
+
+            # Gather all exercises from all weeks
+            program_exercises = set()
+            for week in st.session_state.program_weeks:
+                for day_exs in week["days"].values():
+                    for entry in day_exs:
+                        program_exercises.add(entry["exercise"])
+
+            all_ex_options = sorted(program_exercises | set(current_custom))
+
+            if all_ex_options:
+                selected_exs = st.multiselect(
+                    "Tracked exercises",
+                    options=all_ex_options,
+                    default=[e for e in current_custom if e in all_ex_options],
+                    key="str_exercises_ms",
+                    label_visibility="collapsed",
+                )
+                st.session_state.user_profile[
+                    "strength_tracked_exercises"
+                ] = selected_exs
+            else:
+                st.caption("Add exercises to your program first")
+
+
 def render_weekly_editor_enhanced(
     exercises, exercise_names, display_to_name, name_to_display
 ):
@@ -1819,6 +2028,9 @@ def render_weekly_editor_enhanced(
     with col_stats:
         # Compact user profile at top of stats panel
         render_user_profile_compact()
+
+        # Analysis filter settings
+        render_analysis_filters(exercises)
 
         st.markdown("---")
 
@@ -2280,6 +2492,72 @@ def render_user_profile():
         st.markdown("- Strength: 1-8 RM (80%+ 1RM)")
 
 
+# =============================================================================
+# Analysis Filter Functions
+# =============================================================================
+
+
+def get_tracked_hypertrophy_muscles():
+    """
+    Get the set of muscles to include in hypertrophy analysis.
+    Returns None if all muscles should be tracked (default).
+    Returns a set of title-cased muscle names if filtered.
+    """
+    tracked = st.session_state.user_profile.get("hypertrophy_tracked_muscles")
+    if not tracked:
+        return None  # All muscles
+    return set(m.title() for m in tracked)
+
+
+def get_tracked_strength_exercises(exercises):
+    """
+    Get the set of exercise names to include in strength analysis.
+    Returns None if all exercises should be tracked.
+    Returns a set of exercise names if filtered.
+
+    Modes:
+    - "compound": Big 5 lifts - squat, deadlift, bench, OHP, row (default)
+    - "all": All exercises (no filter)
+    - "custom": User-selected exercises
+    """
+    mode = st.session_state.user_profile.get("strength_tracking_mode", "compound")
+
+    if mode == "all":
+        return None
+    elif mode == "custom":
+        custom = st.session_state.user_profile.get("strength_tracked_exercises", [])
+        return set(custom) if custom else None
+    else:  # compound (default) — Big 5 pattern matching
+        return {ex["name"] for ex in exercises if is_big5_exercise(ex["name"])}
+
+
+def filter_hypertrophy_results(hyp_sets):
+    """Filter hypertrophy sets to only include tracked muscles."""
+    tracked = get_tracked_hypertrophy_muscles()
+    if tracked is None:
+        return hyp_sets
+    return {
+        day: {m: s for m, s in muscles.items() if m in tracked}
+        for day, muscles in hyp_sets.items()
+    }
+
+
+def filter_strength_results(str_sets, exercises):
+    """Filter strength sets to only include tracked exercises."""
+    tracked = get_tracked_strength_exercises(exercises)
+    if tracked is None:
+        return str_sets
+    return {
+        day: {e: s for e, s in exs.items() if e in tracked}
+        for day, exs in str_sets.items()
+    }
+
+
+# =============================================================================
+# Fractional Sets Calculation Functions
+# =============================================================================
+
+
 def calculate_hypertrophy_sets(program, exercises):
     """
     Calculate hypertrophy fractional sets (>6 reps).
@@ -2697,7 +2975,7 @@ def render_weight_recommendations(exercise_name, one_rm):
                 )
 
 
-def render_weekly_summary(hyp_sets, str_sets):
+def render_weekly_summary(hyp_sets, str_sets, program=None, exercises=None):
     """Render the weekly summary of fractional sets."""
     st.header("📊 Weekly Fractional Sets Summary")
 
@@ -2707,10 +2985,10 @@ def render_weekly_summary(hyp_sets, str_sets):
     )
 
     with hyp_tab:
-        render_hypertrophy_summary(hyp_sets)
+        render_hypertrophy_summary(hyp_sets, program=program, exercises=exercises)
 
     with str_tab:
-        render_strength_summary(str_sets)
+        render_strength_summary(str_sets, program=program, exercises_lib=exercises)
 
     with combined_tab:
         render_combined_summary(hyp_sets, str_sets)
@@ -3149,6 +3427,11 @@ def analyze_program_guidelines(program, exercises, hyp_sets, str_sets):
             if entry["reps"] <= 6:
                 program_strength_exercises.add(entry["exercise"])
 
+    # Apply strength tracking filter
+    tracked_str = get_tracked_strength_exercises(exercises)
+    if tracked_str is not None:
+        program_strength_exercises &= tracked_str
+
     for ex in program_strength_exercises:
         total = exercise_totals.get(ex, 0)
         # Count direct sets only
@@ -3182,6 +3465,18 @@ def analyze_program_guidelines(program, exercises, hyp_sets, str_sets):
         if days_trained < guidelines["strength"]["frequency"]["minimum"]:
             analysis["strength"]["suggestions"].append(
                 f"{ex}: trained {days_trained}x/week < recommended ({guidelines['strength']['frequency']['minimum']}-{guidelines['strength']['frequency']['maximum']}x)"
+            )
+
+    # Big 5 coverage check (only when tracking Big 5)
+    mode = st.session_state.user_profile.get("strength_tracking_mode", "compound")
+    if mode == "compound":
+        covered, missing_cats = get_big5_coverage(program)
+        analysis["strength"]["big5_covered"] = covered
+        analysis["strength"]["big5_missing"] = missing_cats
+        if missing_cats:
+            analysis["strength"]["suggestions"].append(
+                f"Missing Big 5 categories: {', '.join(missing_cats)}. "
+                f"Consider adding exercises for balanced strength development."
             )
 
     # Analyze training frequency per day
@@ -3400,6 +3695,236 @@ def render_program_designer(program, exercises, hyp_sets, str_sets):
     )
 
 
+def get_muscle_exercise_contributors(muscle_name, program, exercises):
+    """
+    Get all exercises that contribute to a muscle group's hypertrophy volume.
+
+    Args:
+        muscle_name: Title-cased muscle name (e.g., "Chest")
+        program: Dict of day -> list of exercise entries
+        exercises: Exercise library
+
+    Returns:
+        List of contributor dicts with exercise, day, sets, reps, role, contribution.
+    """
+    muscle_lower = muscle_name.lower()
+    contributors = []
+
+    for day in DAYS:
+        for entry in program.get(day, []):
+            if entry["reps"] <= 6:
+                continue  # Hypertrophy only (>6 reps)
+
+            ex_info = get_exercise_by_name(exercises, entry["exercise"])
+            if not ex_info:
+                continue
+
+            primary = [m.lower() for m in ex_info.get("primaryMuscles", [])]
+            secondary = [m.lower() for m in ex_info.get("secondaryMuscles", [])]
+
+            if muscle_lower in primary:
+                role = "primary"
+                multiplier = 1.0
+            elif muscle_lower in secondary:
+                role = "secondary"
+                multiplier = 0.5
+            else:
+                continue
+
+            contributors.append(
+                {
+                    "exercise": entry["exercise"],
+                    "day": day,
+                    "sets": entry["sets"],
+                    "reps": entry["reps"],
+                    "role": role,
+                    "multiplier": multiplier,
+                    "contribution": entry["sets"] * multiplier,
+                }
+            )
+
+    return contributors
+
+
+def get_strength_exercise_details(exercise_name, program, exercises):
+    """
+    Get detailed breakdown for a strength exercise's volume.
+
+    Args:
+        exercise_name: Name of the exercise
+        program: Dict of day -> list of exercise entries
+        exercises: Exercise library
+
+    Returns:
+        Dict with 'direct' (list of direct training instances) and
+        'indirect' (list of indirect contributions from related exercises).
+    """
+    ex_info = get_exercise_by_name(exercises, exercise_name)
+    if not ex_info:
+        return {"direct": [], "indirect": []}
+
+    ex_muscles = set()
+    for m in ex_info.get("primaryMuscles", []):
+        if m:
+            ex_muscles.add(m.lower())
+    for m in ex_info.get("secondaryMuscles", []):
+        if m:
+            ex_muscles.add(m.lower())
+
+    direct = []
+    indirect = []
+
+    for day in DAYS:
+        for entry in program.get(day, []):
+            if entry["reps"] > 6:
+                continue  # Strength only (<=6 reps)
+
+            if entry["exercise"] == exercise_name:
+                direct.append(
+                    {
+                        "day": day,
+                        "sets": entry["sets"],
+                        "reps": entry["reps"],
+                    }
+                )
+            else:
+                other_info = get_exercise_by_name(exercises, entry["exercise"])
+                if other_info:
+                    other_muscles = set()
+                    for m in other_info.get("primaryMuscles", []):
+                        if m:
+                            other_muscles.add(m.lower())
+                    for m in other_info.get("secondaryMuscles", []):
+                        if m:
+                            other_muscles.add(m.lower())
+
+                    shared = ex_muscles & other_muscles
+                    if shared:
+                        indirect.append(
+                            {
+                                "exercise": entry["exercise"],
+                                "day": day,
+                                "sets": entry["sets"],
+                                "reps": entry["reps"],
+                                "shared_muscles": sorted(m.title() for m in shared),
+                                "contribution": entry["sets"] * 0.5,
+                            }
+                        )
+
+    return {"direct": direct, "indirect": indirect}
+
+
+def render_muscle_drilldown(muscle, info, program, exercises, key_prefix="analysis"):
+    """Render a drill-down expander for a single muscle group."""
+    status_icon = {
+        "below_minimum": "🔴",
+        "below_practical": "🟡",
+        "optimal": "🟢",
+        "above_practical": "🟡",
+        "above_maximum": "🔴",
+    }.get(info["status"], "⚪")
+
+    with st.expander(
+        f"{status_icon} **{muscle}** — {info['total']:.1f} sets/week"
+    ):
+        # Per-day volume breakdown
+        st.markdown("**📅 Volume by Day:**")
+        day_cols = st.columns(7)
+        for i, day in enumerate(DAYS):
+            with day_cols[i]:
+                day_val = info["per_day"].get(day, 0)
+                if day_val > 0:
+                    st.metric(day[:3], f"{day_val:.1f}")
+                else:
+                    st.metric(day[:3], "—")
+
+        # Contributing exercises
+        st.markdown("---")
+        st.markdown("**🏋️ Contributing Exercises:**")
+        contributors = get_muscle_exercise_contributors(muscle, program, exercises)
+
+        if contributors:
+            # Group by exercise name
+            by_exercise = {}
+            for c in contributors:
+                key = c["exercise"]
+                if key not in by_exercise:
+                    by_exercise[key] = {
+                        "role": c["role"],
+                        "multiplier": c["multiplier"],
+                        "entries": [],
+                        "total": 0,
+                    }
+                by_exercise[key]["entries"].append(c)
+                by_exercise[key]["total"] += c["contribution"]
+
+            for ex_name, ex_data in sorted(
+                by_exercise.items(), key=lambda x: -x[1]["total"]
+            ):
+                role_tag = (
+                    "🎯 Primary (1.0x)"
+                    if ex_data["role"] == "primary"
+                    else "↳ Synergist (0.5x)"
+                )
+                st.markdown(
+                    f"**{ex_name}** — {role_tag} — "
+                    f"**{ex_data['total']:.1f}** sets"
+                )
+                for e in ex_data["entries"]:
+                    st.caption(
+                        f"  {e['day']}: {e['sets']}×{e['reps']} "
+                        f"→ {e['contribution']:.1f} sets"
+                    )
+        else:
+            st.caption("No contributing exercises found")
+
+
+def render_strength_drilldown(ex_name, info, program, exercises, key_prefix="analysis"):
+    """Render a drill-down expander for a single strength exercise."""
+    status_icon = {
+        "below_minimum": "🔴",
+        "optimal": "🟢",
+        "above_maximum": "🔴",
+    }.get(info["status"], "🟢")
+
+    with st.expander(
+        f"{status_icon} **{ex_name}** — {info['direct_sets']} direct / "
+        f"{info['total_fractional']:.1f} total sets ({info['days_trained']}x/wk)"
+    ):
+        details = get_strength_exercise_details(ex_name, program, exercises)
+
+        # Direct training
+        if details["direct"]:
+            st.markdown("**📅 Direct Training (1.0x per set):**")
+            for d in details["direct"]:
+                st.markdown(
+                    f"- **{d['day']}**: {d['sets']}×{d['reps']} "
+                    f"→ {d['sets']:.0f} direct sets"
+                )
+
+        # Indirect contributors
+        if details["indirect"]:
+            st.markdown("---")
+            st.markdown("**↳ Indirect Contributors (0.5x per set):**")
+            for c in details["indirect"]:
+                shared = ", ".join(c["shared_muscles"])
+                st.markdown(
+                    f"- **{c['exercise']}** ({c['day']}): "
+                    f"{c['sets']}×{c['reps']} → +{c['contribution']:.1f} sets "
+                    f"*(shared: {shared})*"
+                )
+
+        # Summary
+        total_direct = sum(d["sets"] for d in details["direct"])
+        total_indirect = sum(c["contribution"] for c in details["indirect"])
+        st.markdown("---")
+        st.markdown(
+            f"**Total:** {total_direct:.0f} direct + "
+            f"{total_indirect:.1f} indirect = "
+            f"**{total_direct + total_indirect:.1f}** fractional sets"
+        )
+
+
 def render_program_analysis(program, exercises, hyp_sets, str_sets):
     """Render the program analysis against guidelines."""
     st.header("🔍 Program Analysis")
@@ -3429,8 +3954,13 @@ def render_program_analysis(program, exercises, hyp_sets, str_sets):
 
     with col2:
         str_issues = len(analysis["strength"]["issues"])
-        if str_issues == 0:
+        missing_cats = analysis["strength"].get("big5_missing", [])
+        if str_issues == 0 and not missing_cats:
             st.success(f"✅ Strength volume OK")
+        elif str_issues == 0 and missing_cats:
+            st.warning(
+                f"⚠️ Missing Big 5: {', '.join(missing_cats)}"
+            )
         else:
             st.warning(f"⚠️ {str_issues} strength issues")
 
@@ -3550,6 +4080,18 @@ def render_program_analysis(program, exercises, hyp_sets, str_sets):
                 for sugg in analysis["hypertrophy"]["suggestions"]:
                     st.markdown(f"- {sugg}")
 
+            # Drill-down details per muscle group
+            st.markdown("---")
+            st.markdown("**🔍 Click a muscle group for detailed breakdown:**")
+            for muscle, info in sorted(
+                analysis["hypertrophy"]["muscles"].items(),
+                key=lambda x: x[1]["total"],
+                reverse=True,
+            ):
+                render_muscle_drilldown(
+                    muscle, info, program, exercises, key_prefix="analysis_hyp"
+                )
+
         else:
             st.info("Add exercises with >6 reps to see hypertrophy analysis")
 
@@ -3586,10 +4128,53 @@ def render_program_analysis(program, exercises, hyp_sets, str_sets):
             df = pd.DataFrame(data)
             st.dataframe(df, use_container_width=True, hide_index=True)
 
+            # Big 5 coverage panel
+            if "big5_covered" in analysis["strength"]:
+                covered = analysis["strength"]["big5_covered"]
+                missing_cats = analysis["strength"]["big5_missing"]
+
+                st.markdown("---")
+                st.markdown(
+                    f"**Big 5 Coverage: {len(covered)}/{len(BIG_5_CATEGORIES)} categories**"
+                )
+
+                cols = st.columns(len(BIG_5_CATEGORIES))
+                for i, cat in enumerate(BIG_5_CATEGORIES):
+                    with cols[i]:
+                        if cat in covered:
+                            exs = covered[cat]
+                            ex_names = sorted(set(e["exercise"] for e in exs))
+                            st.success(f"✅ {cat}")
+                            for name in ex_names:
+                                st.caption(name)
+                        else:
+                            st.error(f"❌ {cat}")
+                            st.caption("Not in program")
+
+                if missing_cats:
+                    st.warning(
+                        f"⚠️ **Missing {len(missing_cats)} Big 5 "
+                        f"{'category' if len(missing_cats) == 1 else 'categories'}:** "
+                        f"{', '.join(missing_cats)}. "
+                        f"Consider adding these for balanced strength development."
+                    )
+
             if analysis["strength"]["suggestions"]:
                 st.markdown("**💡 Suggestions:**")
                 for sugg in analysis["strength"]["suggestions"]:
                     st.markdown(f"- {sugg}")
+
+            # Drill-down details per strength exercise
+            st.markdown("---")
+            st.markdown("**🔍 Click an exercise for detailed breakdown:**")
+            for ex, info in sorted(
+                analysis["strength"]["exercises"].items(),
+                key=lambda x: x[1]["direct_sets"],
+                reverse=True,
+            ):
+                render_strength_drilldown(
+                    ex, info, program, exercises, key_prefix="analysis_str"
+                )
 
         else:
             st.info("Add exercises with 1-6 reps to see strength analysis")
@@ -3692,7 +4277,7 @@ def render_volume_recommendations():
         )
 
 
-def render_hypertrophy_summary(hyp_sets):
+def render_hypertrophy_summary(hyp_sets, program=None, exercises=None):
     """Render hypertrophy fractional sets summary."""
     st.subheader("Muscle-Focused Fractional Sets")
     st.caption("1.0 set for primary muscles, 0.5 for synergist muscles (>6 reps only)")
@@ -3757,8 +4342,34 @@ def render_hypertrophy_summary(hyp_sets):
         fig.update_layout(xaxis_tickangle=-45)
         st.plotly_chart(fig, use_container_width=True)
 
+        # Drill-down per muscle group
+        if program is not None and exercises is not None:
+            st.markdown("---")
+            st.markdown("**🔍 Click a muscle group for details:**")
 
-def render_strength_summary(str_sets):
+            # Build per-day info for each muscle (matches analysis format)
+            muscle_per_day = defaultdict(lambda: defaultdict(float))
+            for day, muscles in hyp_sets.items():
+                for muscle, sets in muscles.items():
+                    muscle_per_day[muscle][day] += sets
+
+            for muscle in df["Muscle Group"].values:
+                total = muscle_totals[muscle]
+                per_day = dict(muscle_per_day[muscle])
+
+                # Simplified info dict compatible with render_muscle_drilldown
+                info = {
+                    "total": total,
+                    "status": "optimal",  # No assessment in summary view
+                    "per_day": per_day,
+                }
+
+                render_muscle_drilldown(
+                    muscle, info, program, exercises, key_prefix="summary_hyp"
+                )
+
+
+def render_strength_summary(str_sets, program=None, exercises_lib=None):
     """Render strength fractional sets summary."""
     st.subheader("Exercise-Focused Fractional Sets")
     st.caption("1.0 set for direct work, 0.5 for related exercises (1-6 reps only)")
@@ -3820,6 +4431,58 @@ def render_strength_summary(str_sets):
         )
         fig.update_layout(xaxis_tickangle=-45)
         st.plotly_chart(fig, use_container_width=True)
+
+        # Big 5 coverage (in summary view)
+        if program is not None:
+            mode = st.session_state.user_profile.get(
+                "strength_tracking_mode", "compound"
+            )
+            if mode == "compound":
+                covered, missing_cats = get_big5_coverage(program)
+                if missing_cats:
+                    st.markdown("---")
+                    st.warning(
+                        f"⚠️ **Big 5 Coverage: {len(covered)}/{len(BIG_5_CATEGORIES)}** — "
+                        f"Missing: {', '.join(missing_cats)}. "
+                        f"Consider adding these for balanced strength."
+                    )
+
+        # Drill-down per exercise
+        if program is not None and exercises_lib is not None:
+            st.markdown("---")
+            st.markdown("**🔍 Click an exercise for details:**")
+
+            # Build per-day info for each exercise
+            exercise_per_day = defaultdict(lambda: defaultdict(float))
+            for day, exs in str_sets.items():
+                for ex, sets in exs.items():
+                    exercise_per_day[ex][day] += sets
+
+            for ex_name in df["Exercise"].values:
+                total = exercise_totals[ex_name]
+                days_trained = sum(
+                    1 for d in DAYS if exercise_per_day[ex_name].get(d, 0) > 0
+                )
+
+                # Count direct sets from program
+                direct_sets = sum(
+                    entry["sets"]
+                    for day_exs in program.values()
+                    for entry in day_exs
+                    if entry["exercise"] == ex_name and entry["reps"] <= 6
+                )
+
+                # Simplified info dict compatible with render_strength_drilldown
+                info = {
+                    "direct_sets": direct_sets,
+                    "total_fractional": total,
+                    "status": "optimal",
+                    "days_trained": days_trained,
+                }
+
+                render_strength_drilldown(
+                    ex_name, info, program, exercises_lib, key_prefix="summary_str"
+                )
 
 
 def render_combined_summary(hyp_sets, str_sets):
@@ -5053,6 +5716,10 @@ def main():
         hyp_sets = calculate_hypertrophy_sets(current_week_days, exercises)
         str_sets = calculate_strength_sets(current_week_days, exercises)
 
+        # Apply analysis filters
+        hyp_sets = filter_hypertrophy_results(hyp_sets)
+        str_sets = filter_strength_results(str_sets, exercises)
+
         designer_tab, analysis_tab, balance_tab = st.tabs(
             ["🎨 Volume Check", "🔍 Detailed Analysis", "⚖️ Muscle Balance"]
         )
@@ -5078,7 +5745,13 @@ def main():
         hyp_sets = calculate_hypertrophy_sets(current_week_days, exercises)
         str_sets = calculate_strength_sets(current_week_days, exercises)
 
-        render_weekly_summary(hyp_sets, str_sets)
+        # Apply analysis filters
+        hyp_sets = filter_hypertrophy_results(hyp_sets)
+        str_sets = filter_strength_results(str_sets, exercises)
+
+        render_weekly_summary(
+            hyp_sets, str_sets, program=current_week_days, exercises=exercises
+        )
 
         # Add muscle balance analysis
         st.markdown("---")
