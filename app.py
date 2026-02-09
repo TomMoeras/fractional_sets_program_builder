@@ -179,7 +179,7 @@ def get_recommended_frequency(weekly_sets):
 
 @st.cache_data
 def load_exercise_library():
-    """Load exercise library from JSON file."""
+    """Load exercise library from JSON file, including custom exercises."""
     # Try different possible paths for deployment flexibility
     possible_paths = [
         Path(__file__).parent / "data/exercises.json",
@@ -188,18 +188,41 @@ def load_exercise_library():
         Path(__file__).parent / "free-exercise-db/dist/exercises.json",
     ]
 
+    exercises = []
+    
+    # Load main exercise library
     for path in possible_paths:
         if path.exists():
             try:
                 with open(path, "r") as f:
-                    data = json.load(f)
-                return data  # free-exercise-db is already an array
+                    exercises = json.load(f)
+                break
             except Exception as e:
                 st.error(f"Error loading exercise library: {e}")
                 return []
-
-    st.error("Exercise library not found. Please ensure data/exercises.json exists.")
-    return []
+    
+    if not exercises:
+        st.error("Exercise library not found. Please ensure data/exercises.json exists.")
+        return []
+    
+    # Load custom exercises if available
+    custom_paths = [
+        Path(__file__).parent / "data/custom_exercises.json",
+        Path("data/custom_exercises.json"),
+    ]
+    
+    for path in custom_paths:
+        if path.exists():
+            try:
+                with open(path, "r") as f:
+                    custom_exercises = json.load(f)
+                    exercises.extend(custom_exercises)
+                    break
+            except Exception as e:
+                # Custom exercises are optional, so just log a warning
+                st.warning(f"Note: Could not load custom exercises: {e}")
+    
+    return exercises
 
 
 @st.cache_data

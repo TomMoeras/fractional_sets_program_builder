@@ -1,0 +1,170 @@
+[
+  {
+    "name": "Dumbbell Curtsy Lunge",
+    "force": "push",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "dumbbell",
+    "primaryMuscles": [
+      "quadriceps",
+      "glutes"
+    ],
+    "secondaryMuscles": [
+      "hamstrings",
+      "adductors"
+    ],
+    "instructions": [
+      "Stand with your feet hip-width apart holding a dumbbell in each hand at your sides.",
+      "Take your right leg and step it back and across your left leg, bending both knees as if performing a curtsy.",
+      "Lower your hips until your left thigh is parallel to the floor, keeping your torso upright.",
+      "Push through your left heel to return to the starting position.",
+      "Repeat on the other side."
+    ],
+    "category": "strength",
+    "images": [
+      "Dumbbell_Curtsy_Lunge/0.jpg",
+      "Dumbbell_Curtsy_Lunge/1.jpg"
+    ],
+    "id": "Dumbbell_Curtsy_Lunge"
+  },
+  {
+    "name": "Ring Row",
+    "force": "pull",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "other",
+    "primaryMuscles": [
+      "middle back"
+    ],
+    "secondaryMuscles": [
+      "biceps",
+      "lats"
+    ],
+    "instructions": [
+      "Adjust the rings to an appropriate height. Grab the rings with a neutral grip and lean back, keeping your body straight from head to heels.",
+      "Your arms should be fully extended. This is your starting position.",
+      "Pull your chest up toward the rings by bending your elbows and retracting your shoulder blades.",
+      "Keep your body straight throughout the movement.",
+      "Pause at the top, then slowly lower yourself back to the starting position.",
+      "Repeat for the recommended amount of repetitions."
+    ],
+    "category": "strength",
+    "images": [
+      "Ring_Row/0.jpg",
+      "Ring_Row/1.jpg"
+    ],
+    "id": "Ring_Row"
+  },
+  {
+    "name": "Seal Row",
+    "force": "pull",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "barbell",
+    "primaryMuscles": [
+      "middle back"
+    ],
+    "secondaryMuscles": [
+      "biceps",
+      "lats"
+    ],
+    "instructions": [
+      "Set up a bench on elevated platforms or boxes so you can lie face down with arms hanging straight down.",
+      "Grab a barbell or dumbbells with an overhand grip, arms fully extended toward the floor.",
+      "Pull the weight up toward your chest, keeping your elbows close to your body.",
+      "Squeeze your shoulder blades together at the top of the movement.",
+      "Slowly lower the weight back to the starting position.",
+      "Repeat for the recommended amount of repetitions."
+    ],
+    "category": "strength",
+    "images": [
+      "Seal_Row/0.jpg",
+      "Seal_Row/1.jpg"
+    ],
+    "id": "Seal_Row"
+  },
+  {
+    "name": "Switch Jump",
+    "force": "push",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "body only",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "glutes",
+      "hamstrings",
+      "calves"
+    ],
+    "instructions": [
+      "Start in a lunge position with one foot forward and one foot back, both knees bent at 90 degrees.",
+      "Explosively jump up, switching your legs in mid-air.",
+      "Land softly in a lunge position with the opposite leg forward.",
+      "Immediately jump again to switch legs.",
+      "Repeat for the recommended amount of repetitions."
+    ],
+    "category": "plyometrics",
+    "images": [
+      "Switch_Jump/0.jpg",
+      "Switch_Jump/1.jpg"
+    ],
+    "id": "Switch_Jump"
+  },
+  {
+    "name": "Copenhagen Hold",
+    "force": "pull",
+    "level": "advanced",
+    "mechanic": "isolation",
+    "equipment": "body only",
+    "primaryMuscles": [
+      "adductors"
+    ],
+    "secondaryMuscles": [
+      "abdominals",
+      "obliques"
+    ],
+    "instructions": [
+      "Position yourself sideways next to a bench or elevated surface.",
+      "Place your top leg on the bench with your knee or foot, depending on difficulty level desired.",
+      "Keep your bottom leg extended and hovering above the ground.",
+      "Support your upper body with your forearm on the ground, maintaining a straight line from head to heels.",
+      "Hold this position, engaging your adductors and core.",
+      "Maintain the hold for the prescribed duration, then switch sides."
+    ],
+    "category": "strength",
+    "images": [
+      "Copenhagen_Hold/0.jpg",
+      "Copenhagen_Hold/1.jpg"
+    ],
+    "id": "Copenhagen_Hold"
+  },
+  {
+    "name": "Cable Step Down",
+    "force": "push",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "cable",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "Stand on an elevated platform or box with one foot near the edge.",
+      "Hold a cable handle in one or both hands for added resistance.",
+      "Slowly lower your free leg toward the ground by bending the knee of the leg on the platform.",
+      "Control the descent, keeping your weight on the heel of your elevated foot.",
+      "Push through your heel to return to the starting position.",
+      "Repeat for the recommended amount of repetitions, then switch legs."
+    ],
+    "category": "strength",
+    "images": [
+      "Cable_Step_Down/0.jpg",
+      "Cable_Step_Down/1.jpg"
+    ],
+    "id": "Cable_Step_Down"
+  }
+]
