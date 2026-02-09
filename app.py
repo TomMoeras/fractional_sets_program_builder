@@ -189,7 +189,7 @@ def load_exercise_library():
     ]
 
     exercises = []
-    
+
     # Load main exercise library
     for path in possible_paths:
         if path.exists():
@@ -200,17 +200,19 @@ def load_exercise_library():
             except Exception as e:
                 st.error(f"Error loading exercise library: {e}")
                 return []
-    
+
     if not exercises:
-        st.error("Exercise library not found. Please ensure data/exercises.json exists.")
+        st.error(
+            "Exercise library not found. Please ensure data/exercises.json exists."
+        )
         return []
-    
+
     # Load custom exercises if available
     custom_paths = [
         Path(__file__).parent / "data/custom_exercises.json",
         Path("data/custom_exercises.json"),
     ]
-    
+
     for path in custom_paths:
         if path.exists():
             try:
@@ -221,7 +223,7 @@ def load_exercise_library():
             except Exception as e:
                 # Custom exercises are optional, so just log a warning
                 st.warning(f"Note: Could not load custom exercises: {e}")
-    
+
     return exercises
 
 
@@ -232,7 +234,7 @@ def load_program_templates():
         Path(__file__).parent / "data/program_templates.json",
         Path("data/program_templates.json"),
     ]
-    
+
     for path in possible_paths:
         if path.exists():
             try:
@@ -241,7 +243,7 @@ def load_program_templates():
             except Exception as e:
                 st.error(f"Error loading templates: {e}")
                 return {}
-    
+
     return {}
 
 
@@ -483,6 +485,11 @@ def import_program_from_json(data):
             else:
                 # Even older format where keys are day names directly
                 days_data = {day: data.get(day, []) for day in DAYS}
+
+            # Ensure all 7 days are present (missing days = rest days)
+            for day in DAYS:
+                if day not in days_data:
+                    days_data[day] = []
 
             st.session_state.program_name = data.get("name", "Imported Program")
             st.session_state.program_weeks = [
@@ -947,7 +954,9 @@ def render_week_navigation():
             if len(weeks) > 1:
                 with st.popover("🗑️", help="Delete this week"):
                     st.warning(f"Delete '{current_week['name']}'?")
-                    if st.button("Yes, Delete Week", type="primary", key="confirm_delete_week"):
+                    if st.button(
+                        "Yes, Delete Week", type="primary", key="confirm_delete_week"
+                    ):
                         delete_week(current_idx)
                         st.rerun()
 
@@ -1561,16 +1570,16 @@ def render_day_editor_enhanced(
         # 1RM section - inline add/edit
         if selected_exercise:
             current_1rm = st.session_state.exercise_1rm.get(selected_exercise, 0)
-            
+
             with st.container():
                 st.markdown("**🎯 1RM & Weight Suggestion**")
-                
+
                 if current_1rm > 0:
                     # Show current 1RM and suggested weight
                     suggested_weight = get_weight_for_reps(current_1rm, reps)
                     training_type = "Strength" if reps <= 6 else "Hypertrophy"
                     pct = (suggested_weight / current_1rm) * 100
-                    
+
                     col_rm, col_weight = st.columns(2)
                     with col_rm:
                         new_1rm = st.number_input(
@@ -1580,7 +1589,7 @@ def render_day_editor_enhanced(
                             value=float(current_1rm),
                             step=2.5,
                             key=f"1rm_{day}_{week_idx}",
-                            help="Your one-rep max for this exercise"
+                            help="Your one-rep max for this exercise",
                         )
                         if new_1rm != current_1rm and new_1rm > 0:
                             st.session_state.exercise_1rm[selected_exercise] = new_1rm
@@ -1589,19 +1598,19 @@ def render_day_editor_enhanced(
                         st.metric(
                             f"Suggested ({training_type})",
                             f"{suggested_weight:.1f} kg",
-                            f"{pct:.0f}% of 1RM"
+                            f"{pct:.0f}% of 1RM",
                         )
                 else:
                     # No 1RM set - offer to add one
                     st.caption("No 1RM set - add one for weight suggestions")
-                    
+
                     rm_method = st.radio(
                         "Add 1RM",
                         ["Enter directly", "Calculate from lift"],
                         key=f"rm_method_{day}_{week_idx}",
                         horizontal=True,
                     )
-                    
+
                     if rm_method == "Enter directly":
                         new_1rm = st.number_input(
                             "1RM (kg)",
@@ -1612,8 +1621,12 @@ def render_day_editor_enhanced(
                             key=f"new_1rm_{day}_{week_idx}",
                         )
                         if new_1rm > 0:
-                            if st.button("💾 Save 1RM", key=f"save_1rm_{day}_{week_idx}"):
-                                st.session_state.exercise_1rm[selected_exercise] = new_1rm
+                            if st.button(
+                                "💾 Save 1RM", key=f"save_1rm_{day}_{week_idx}"
+                            ):
+                                st.session_state.exercise_1rm[selected_exercise] = (
+                                    new_1rm
+                                )
                                 st.rerun()
                     else:
                         col_w, col_r = st.columns(2)
@@ -1634,12 +1647,16 @@ def render_day_editor_enhanced(
                                 value=5,
                                 key=f"lift_reps_{day}_{week_idx}",
                             )
-                        
+
                         if lift_weight > 0:
                             est_1rm = calculate_1rm_from_reps(lift_weight, lift_reps)
                             st.info(f"Estimated 1RM: **{est_1rm:.1f} kg**")
-                            if st.button("💾 Save Est. 1RM", key=f"save_est_1rm_{day}_{week_idx}"):
-                                st.session_state.exercise_1rm[selected_exercise] = est_1rm
+                            if st.button(
+                                "💾 Save Est. 1RM", key=f"save_est_1rm_{day}_{week_idx}"
+                            ):
+                                st.session_state.exercise_1rm[selected_exercise] = (
+                                    est_1rm
+                                )
                                 st.rerun()
 
         # Real-time fractional set preview
@@ -1649,7 +1666,7 @@ def render_day_editor_enhanced(
                 primary = get_primary_muscle(exercise)
                 secondary = get_secondary_muscles(exercise)
                 is_hypertrophy = reps > 6
-                
+
                 st.markdown("---")
                 if is_hypertrophy:
                     st.markdown("**📊 Fractional Set Preview (Hypertrophy)**")
@@ -1660,7 +1677,9 @@ def render_day_editor_enhanced(
                     st.success(f"→ {' | '.join(preview_parts)}")
                 else:
                     st.markdown("**📊 Fractional Set Preview (Strength)**")
-                    st.info(f"→ **{selected_exercise}**: +{sets} strength sets | Primary: {primary}")
+                    st.info(
+                        f"→ **{selected_exercise}**: +{sets} strength sets | Primary: {primary}"
+                    )
                 st.markdown("---")
 
         if st.button("Add Exercise", key=f"add_{day}_{week_idx}"):
@@ -1678,7 +1697,7 @@ def render_user_profile_compact():
     """Render a compact user profile widget for the weekly editor sidebar."""
     profile = st.session_state.user_profile
     targets = get_volume_targets()
-    
+
     with st.expander("👤 Profile & Targets", expanded=True):
         # Training status
         selected_status = st.selectbox(
@@ -1691,7 +1710,7 @@ def render_user_profile_compact():
         if selected_status != profile["training_status"]:
             st.session_state.user_profile["training_status"] = selected_status
             st.rerun()
-        
+
         # Volume tier
         selected_tier = st.selectbox(
             "Volume Tier",
@@ -1703,7 +1722,7 @@ def render_user_profile_compact():
         if selected_tier != profile["volume_tier"]:
             st.session_state.user_profile["volume_tier"] = selected_tier
             st.rerun()
-        
+
         # Show current targets
         st.markdown("**🎯 Weekly Targets**")
         col1, col2 = st.columns(2)
@@ -1711,15 +1730,15 @@ def render_user_profile_compact():
             st.metric(
                 "Hyp",
                 f"{targets['hypertrophy']['low']}-{targets['hypertrophy']['high']}",
-                help="Sets per muscle group for hypertrophy"
+                help="Sets per muscle group for hypertrophy",
             )
         with col2:
             st.metric(
                 "Str",
                 f"{targets['strength']['low']}-{targets['strength']['high']}",
-                help="Sets per lift for strength"
+                help="Sets per lift for strength",
             )
-        
+
         # Custom targets toggle
         use_custom = st.checkbox(
             "Custom targets",
@@ -1729,7 +1748,7 @@ def render_user_profile_compact():
         if use_custom != profile["use_custom_targets"]:
             st.session_state.user_profile["use_custom_targets"] = use_custom
             st.rerun()
-        
+
         if use_custom:
             custom_hyp = st.number_input(
                 "Hypertrophy target",
@@ -1741,7 +1760,7 @@ def render_user_profile_compact():
             if custom_hyp != profile["custom_hypertrophy_target"]:
                 st.session_state.user_profile["custom_hypertrophy_target"] = custom_hyp
                 st.rerun()
-            
+
             custom_str = st.number_input(
                 "Strength target",
                 min_value=1,
@@ -1800,9 +1819,9 @@ def render_weekly_editor_enhanced(
     with col_stats:
         # Compact user profile at top of stats panel
         render_user_profile_compact()
-        
+
         st.markdown("---")
-        
+
         # Week stats panel
         week_stats = render_week_stats_panel(week_days, exercises)
 
@@ -2631,7 +2650,9 @@ def render_1rm_manager(exercises, exercise_names, display_to_name=None):
         st.markdown("---")
         if st.session_state.exercise_1rm:
             with st.popover("🗑️ Clear All 1RM Data"):
-                st.warning(f"Delete all {len(st.session_state.exercise_1rm)} 1RM values?")
+                st.warning(
+                    f"Delete all {len(st.session_state.exercise_1rm)} 1RM values?"
+                )
                 if st.button("Yes, Clear All", type="primary", key="confirm_clear_1rm"):
                     st.session_state.exercise_1rm = {}
                     st.rerun()
@@ -3165,7 +3186,7 @@ def analyze_program_guidelines(program, exercises, hyp_sets, str_sets):
 
     # Analyze training frequency per day
     for day in DAYS:
-        day_exercises = program[day]
+        day_exercises = program.get(day, [])
         if day_exercises:
             analysis["frequency"]["days"][day] = {
                 "exercises": len(day_exercises),
@@ -3174,7 +3195,7 @@ def analyze_program_guidelines(program, exercises, hyp_sets, str_sets):
                 "str_sets": sum(e["sets"] for e in day_exercises if e["reps"] <= 6),
             }
 
-    training_days = sum(1 for d in DAYS if program[d])
+    training_days = sum(1 for d in DAYS if program.get(d, []))
     analysis["frequency"]["training_days"] = training_days
 
     return analysis
@@ -3942,27 +3963,27 @@ def render_quick_templates():
     """Render quick template options using templates from JSON file."""
     st.sidebar.markdown("---")
     st.sidebar.subheader("⚡ Quick Templates")
-    
+
     # Load templates from JSON
     all_templates = load_program_templates()
-    
+
     if not all_templates:
         st.sidebar.warning("No templates available")
         return
-    
+
     # Get category list
     categories = list(all_templates.keys())
-    
+
     template_category = st.sidebar.selectbox(
         "Template Category",
         categories,
         key="template_category",
     )
-    
+
     # Get templates for selected category
     category_templates = all_templates.get(template_category, {})
     template_names = ["Select..."] + list(category_templates.keys())
-    
+
     template = st.sidebar.selectbox(
         "Load Template",
         template_names,
@@ -3978,34 +3999,34 @@ def apply_template(category, template_name):
     """Apply a program template from the JSON file."""
     # Load templates
     all_templates = load_program_templates()
-    
+
     if not all_templates:
         st.error("Could not load templates")
         return
-    
+
     # Get template data
     category_templates = all_templates.get(category, {})
     template_data = category_templates.get(template_name, {})
-    
+
     if not template_data:
         st.error(f"Template '{template_name}' not found in category '{category}'")
         return
-    
+
     # Clear current week's program
     week_idx = st.session_state.current_week
     st.session_state.program_weeks[week_idx]["days"] = {day: [] for day in DAYS}
-    
+
     # Get reference to current week days
     program = st.session_state.program_weeks[week_idx]["days"]
-    
+
     # Apply template days
     for day, exercises in template_data.get("days", {}).items():
         if day in program:
             program[day] = [dict(ex) for ex in exercises]  # Deep copy
-    
+
     # Set program name
     st.session_state.program_name = template_data.get("program_name", template_name)
-    
+
     # Also update legacy format for compatibility
     st.session_state.program = program
 
@@ -4155,7 +4176,7 @@ def render_day_compact_view(program, exercises):
     for i, day in enumerate(DAYS):
         with cols[i]:
             st.markdown(f"**{day[:3]}**")
-            day_exercises = program[day]
+            day_exercises = program.get(day, [])
 
             if day_exercises:
                 # Calculate day totals
@@ -4748,7 +4769,7 @@ def render_workout_sheet(program, show_header=True):
     sheet_data = []
 
     for day in DAYS:
-        day_exercises = program[day]
+        day_exercises = program.get(day, [])
         if not day_exercises:
             continue
 
@@ -5009,20 +5030,20 @@ def main():
     elif view == "📚 Exercises & 1RM":
         # Combined Exercise Library + Custom Exercises + 1RM Manager with tabs
         st.header("📚 Exercises & 1RM Data")
-        lib_tab, custom_tab, rm_tab = st.tabs([
-            "🔍 Browse Library", 
-            "➕ My Custom Exercises",
-            "🎯 1RM Manager"
-        ])
-        
+        lib_tab, custom_tab, rm_tab = st.tabs(
+            ["🔍 Browse Library", "➕ My Custom Exercises", "🎯 1RM Manager"]
+        )
+
         with lib_tab:
             render_exercise_library(exercises)
-        
+
         with custom_tab:
             render_custom_exercises()
-        
+
         with rm_tab:
-            st.caption("Track your 1RM values to get weight suggestions in the weekly editor")
+            st.caption(
+                "Track your 1RM values to get weight suggestions in the weekly editor"
+            )
             render_1rm_manager(exercises, exercise_names, display_to_name)
 
     elif view == "📊 Analysis":
@@ -5031,17 +5052,17 @@ def main():
         current_week_days = get_current_week_days()
         hyp_sets = calculate_hypertrophy_sets(current_week_days, exercises)
         str_sets = calculate_strength_sets(current_week_days, exercises)
-        
-        designer_tab, analysis_tab, balance_tab = st.tabs([
-            "🎨 Volume Check", "🔍 Detailed Analysis", "⚖️ Muscle Balance"
-        ])
-        
+
+        designer_tab, analysis_tab, balance_tab = st.tabs(
+            ["🎨 Volume Check", "🔍 Detailed Analysis", "⚖️ Muscle Balance"]
+        )
+
         with designer_tab:
             render_program_designer(current_week_days, exercises, hyp_sets, str_sets)
-        
+
         with analysis_tab:
             render_program_analysis(current_week_days, exercises, hyp_sets, str_sets)
-        
+
         with balance_tab:
             render_muscle_balance(hyp_sets, exercises)
 
