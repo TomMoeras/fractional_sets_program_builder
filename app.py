@@ -130,6 +130,7 @@ ALL_MUSCLE_GROUPS = [
     "calves",
     "chest",
     "forearms",
+    "front deltoids",
     "glutes",
     "hamstrings",
     "lats",
@@ -137,7 +138,9 @@ ALL_MUSCLE_GROUPS = [
     "middle back",
     "neck",
     "quadriceps",
-    "shoulders",
+    "rear deltoids",
+    "rotator cuff",
+    "side deltoids",
     "traps",
     "triceps",
 ]
@@ -861,7 +864,10 @@ def calculate_week_stats(week_days, exercises):
     # Define muscle group categories
     upper_muscles = {
         "chest",
-        "shoulders",
+        "front deltoids",
+        "side deltoids",
+        "rear deltoids",
+        "rotator cuff",
         "triceps",
         "biceps",
         "lats",
@@ -879,8 +885,8 @@ def calculate_week_stats(week_days, exercises):
     }
     core_muscles = {"abdominals", "lower back"}
 
-    push_muscles = {"chest", "shoulders", "triceps"}
-    pull_muscles = {"lats", "middle back", "biceps", "traps", "forearms"}
+    push_muscles = {"chest", "front deltoids", "side deltoids", "triceps"}
+    pull_muscles = {"lats", "middle back", "rear deltoids", "biceps", "traps", "forearms"}
     leg_muscles = {
         "quadriceps",
         "hamstrings",
@@ -1181,7 +1187,10 @@ def render_day_stats_panel(day_exercises, exercises, selected_day):
     if stats["muscle_breakdown"]:
         # Group muscles by body region
         upper_muscles = [
-            "shoulders",
+            "front deltoids",
+            "side deltoids",
+            "rear deltoids",
+            "rotator cuff",
             "chest",
             "triceps",
             "biceps",
@@ -4915,6 +4924,7 @@ def render_custom_exercises():
         "calves",
         "chest",
         "forearms",
+        "front deltoids",
         "glutes",
         "hamstrings",
         "lats",
@@ -4922,7 +4932,9 @@ def render_custom_exercises():
         "middle back",
         "neck",
         "quadriceps",
-        "shoulders",
+        "rear deltoids",
+        "rotator cuff",
+        "side deltoids",
         "traps",
         "triceps",
     ]
@@ -5148,7 +5160,7 @@ def render_custom_exercises():
                 """[
   {
     "name": "My Custom Exercise",
-    "primaryMuscles": ["chest", "shoulders"],
+    "primaryMuscles": ["chest", "front deltoids"],
     "secondaryMuscles": ["triceps"],
     "force": "push",
     "level": "intermediate",

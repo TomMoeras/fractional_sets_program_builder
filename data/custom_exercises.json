@@ -175,7 +175,9 @@
     "equipment": "dumbbell",
     "primaryMuscles": [
       "middle back",
-      "shoulders"
+      "rear deltoids",
+      "front deltoids",
+      "side deltoids"
     ],
     "secondaryMuscles": [
       "biceps",
@@ -265,7 +267,8 @@
     "mechanic": "compound",
     "equipment": "dumbbell",
     "primaryMuscles": [
-      "shoulders"
+      "front deltoids",
+      "side deltoids"
     ],
     "secondaryMuscles": [
       "triceps",
@@ -324,7 +327,8 @@
     "mechanic": "compound",
     "equipment": "dumbbell",
     "primaryMuscles": [
-      "shoulders"
+      "front deltoids",
+      "side deltoids"
     ],
     "secondaryMuscles": [
       "triceps",
