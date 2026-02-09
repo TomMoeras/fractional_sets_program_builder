@@ -316,5 +316,34 @@
       "Switch_Jump_to_Kneeling_Jump/1.jpg"
     ],
     "id": "Switch_Jump_to_Kneeling_Jump"
+  },
+  {
+    "name": "Dumbbell Cuban to Overhead Press",
+    "force": "push",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "dumbbell",
+    "primaryMuscles": [
+      "shoulders"
+    ],
+    "secondaryMuscles": [
+      "triceps",
+      "rotator cuff"
+    ],
+    "instructions": [
+      "Stand with your feet shoulder-width apart, holding light dumbbells with an overhand grip.",
+      "Raise your elbows up to shoulder height with your upper arms parallel to the ground, forearms pointing down (like a goal post position).",
+      "Rotate your shoulders to bring the dumbbells up so your forearms point toward the ceiling, keeping your elbows at shoulder height.",
+      "From this position, press the dumbbells overhead until your arms are fully extended.",
+      "Reverse the movement: lower the dumbbells back to the rotated position, then rotate back down.",
+      "Return to the starting position.",
+      "Repeat for the recommended amount of repetitions, using controlled movements throughout."
+    ],
+    "category": "strength",
+    "images": [
+      "Dumbbell_Cuban_to_Overhead_Press/0.jpg",
+      "Dumbbell_Cuban_to_Overhead_Press/1.jpg"
+    ],
+    "id": "Dumbbell_Cuban_to_Overhead_Press"
   }
 ]
