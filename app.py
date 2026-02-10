@@ -3556,6 +3556,1109 @@ def get_strength_exercise_suggestions(analysis, exercises, guidelines):
     return suggestions
 
 
+def get_rebalancing_suggestions(analysis, program, exercises, guidelines):
+    """
+    Analyze muscle volume imbalances and produce a precise rebalancing plan.
+
+    For every muscle, computes current vs. target volume and identifies:
+    - Over-volume muscles with their contributing exercises
+    - Under-volume muscles with candidate exercises from the library
+    - Muscles already in range
+
+    Returns a dict with all_muscles, over, under, balanced counts, and targets.
+    """
+    hyp_low = guidelines["hypertrophy"]["volume"]["practical_low"]
+    hyp_high = guidelines["hypertrophy"]["volume"]["practical_high"]
+
+    # --- Build exercise contribution map ---
+    program_exercise_contributions = []
+
+    for day in DAYS:
+        for entry in program.get(day, []):
+            if entry["reps"] <= 6:
+                continue
+
+            ex_info = get_exercise_by_name(exercises, entry["exercise"])
+            if not ex_info:
+                continue
+
+            primary = [m.lower() for m in ex_info.get("primaryMuscles", [])]
+            secondary = [m.lower() for m in ex_info.get("secondaryMuscles", [])]
+
+            muscle_contribs = {}
+            for m in primary:
+                muscle_contribs[m.title()] = entry["sets"] * 1.0
+            for m in secondary:
+                muscle_contribs[m.title()] = entry["sets"] * 0.5
+
+            program_exercise_contributions.append(
+                {
+                    "exercise": entry["exercise"],
+                    "day": day,
+                    "sets": entry["sets"],
+                    "reps": entry["reps"],
+                    "muscles": muscle_contribs,
+                }
+            )
+
+    # --- Classify every muscle ---
+    all_muscles = []
+
+    for muscle, info in analysis["hypertrophy"]["muscles"].items():
+        total = info["total"]
+
+        # Determine status and delta
+        if info["status"] in ["above_maximum", "above_practical"]:
+            delta = total - hyp_high
+            direction = "over"
+        elif info["status"] in ["below_minimum", "below_practical"]:
+            delta = hyp_low - total
+            direction = "under"
+        else:
+            delta = 0
+            direction = "ok"
+
+        # Find contributors from the program
+        contributors = []
+        for pec in program_exercise_contributions:
+            if muscle in pec["muscles"]:
+                contributors.append(
+                    {
+                        "exercise": pec["exercise"],
+                        "day": pec["day"],
+                        "sets": pec["sets"],
+                        "reps": pec["reps"],
+                        "contribution": pec["muscles"][muscle],
+                        "is_primary": pec["muscles"][muscle] == pec["sets"] * 1.0,
+                    }
+                )
+        contributors.sort(key=lambda x: x["contribution"], reverse=True)
+
+        # Find candidate exercises from library (for under-volume muscles)
+        candidates = []
+        if direction == "under":
+            muscle_lower = muscle.lower()
+            for ex in exercises:
+                ex_primary = [m.lower() for m in ex.get("primaryMuscles", [])]
+                ex_secondary = [m.lower() for m in ex.get("secondaryMuscles", [])]
+
+                if muscle_lower in ex_primary or muscle_lower in ex_secondary:
+                    in_program = any(
+                        pec["exercise"] == ex["name"]
+                        for pec in program_exercise_contributions
+                    )
+                    is_primary = muscle_lower in ex_primary
+
+                    # Get all muscles this exercise hits (for showing synergies)
+                    all_targets = (
+                        [m.title() for m in ex_primary]
+                        + [m.title() for m in ex_secondary]
+                    )
+
+                    candidates.append(
+                        {
+                            "name": ex["name"],
+                            "equipment": ex.get("equipment", "unknown"),
+                            "mechanic": ex.get("mechanic", "unknown"),
+                            "level": ex.get("level", "unknown"),
+                            "in_program": in_program,
+                            "is_primary": is_primary,
+                            "all_targets": all_targets,
+                        }
+                    )
+
+            # Sort: primary > secondary, not-in-program first, compound first
+            candidates.sort(
+                key=lambda x: (
+                    not x["is_primary"],
+                    x["in_program"],
+                    0 if x["mechanic"] == "compound" else 1,
+                )
+            )
+
+        all_muscles.append(
+            {
+                "muscle": muscle,
+                "total": total,
+                "target_low": hyp_low,
+                "target_high": hyp_high,
+                "delta": delta,
+                "direction": direction,
+                "contributors": contributors,
+                "candidates": candidates[:12],
+            }
+        )
+
+    # Sort: over (biggest surplus first), then under (biggest deficit first), then ok
+    order = {"over": 0, "under": 1, "ok": 2}
+    all_muscles.sort(key=lambda x: (order[x["direction"]], -x["delta"]))
+
+    over_count = sum(1 for m in all_muscles if m["direction"] == "over")
+    under_count = sum(1 for m in all_muscles if m["direction"] == "under")
+    ok_count = sum(1 for m in all_muscles if m["direction"] == "ok")
+
+    return {
+        "all_muscles": all_muscles,
+        "over_count": over_count,
+        "under_count": under_count,
+        "ok_count": ok_count,
+        "target_low": hyp_low,
+        "target_high": hyp_high,
+    }
+
+
+def render_rebalancing_suggestions(rebalancing, guidelines):
+    """Render precise, muscle-centric rebalancing suggestions."""
+    if not rebalancing or not rebalancing.get("all_muscles"):
+        return
+
+    all_muscles = rebalancing["all_muscles"]
+    over_count = rebalancing["over_count"]
+    under_count = rebalancing["under_count"]
+    ok_count = rebalancing["ok_count"]
+    target_low = rebalancing["target_low"]
+    target_high = rebalancing["target_high"]
+
+    if over_count == 0 and under_count == 0:
+        return
+
+    st.markdown("---")
+    st.markdown("### 🔄 Rebalancing Plan")
+    st.caption(
+        f"Target range: **{target_low}–{target_high}** sets/muscle/week · "
+        f"🔴 {over_count} over · 🔵 {under_count} under · 🟢 {ok_count} balanced"
+    )
+
+    # --- Summary table ---
+    summary_data = []
+    for m in all_muscles:
+        icon = {"over": "🔴", "under": "🔵", "ok": "🟢"}[m["direction"]]
+        if m["direction"] == "over":
+            action = f"Reduce by ~{m['delta']:.1f} sets"
+        elif m["direction"] == "under":
+            action = f"Add ~{m['delta']:.1f} sets"
+        else:
+            action = "In range"
+
+        summary_data.append(
+            {
+                "": icon,
+                "Muscle": m["muscle"],
+                "Current": round(m["total"], 1),
+                "Target": f"{target_low}–{target_high}",
+                "Gap": (
+                    f"+{m['delta']:.1f}"
+                    if m["direction"] == "over"
+                    else f"-{m['delta']:.1f}"
+                    if m["direction"] == "under"
+                    else "—"
+                ),
+                "Action": action,
+            }
+        )
+
+    df = pd.DataFrame(summary_data)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+    # --- Per-muscle details ---
+    over_muscles = [m for m in all_muscles if m["direction"] == "over"]
+    under_muscles = [m for m in all_muscles if m["direction"] == "under"]
+
+    if over_muscles:
+        st.markdown("#### 📈 Reduce These Muscles")
+        st.caption(
+            "These muscles exceed your target. Consider dropping sets or "
+            "replacing exercises with ones targeting under-trained muscles."
+        )
+
+        for item in over_muscles:
+            with st.expander(
+                f"🔴 **{item['muscle']}**: {item['total']:.1f} → "
+                f"{item['target_high']} sets "
+                f"(reduce by {item['delta']:.1f})"
+            ):
+                st.markdown("**Contributing exercises** (sorted by impact):")
+
+                for c in item["contributors"]:
+                    role = "primary" if c["is_primary"] else "secondary"
+                    st.markdown(
+                        f"- **{c['exercise']}** — {c['contribution']:.1f} sets "
+                        f"({c['sets']}×{c['reps']} on {c['day']}, {role})"
+                    )
+
+                # Concrete advice
+                top = item["contributors"][0] if item["contributors"] else None
+                if top:
+                    st.info(
+                        f"💡 **Suggestion:** To reduce {item['muscle']} by "
+                        f"~{item['delta']:.0f} sets, you could:\n"
+                        f"- Drop **{min(item['delta'], top['sets']):.0f} set(s)** "
+                        f"from {top['exercise']} ({top['day']})\n"
+                        f"- Or replace it with an exercise targeting an "
+                        f"under-trained muscle below"
+                    )
+
+    if under_muscles:
+        st.markdown("#### 📉 Grow These Muscles")
+        st.caption(
+            "These muscles are below your target. "
+            "Add exercises or sets to bring them up."
+        )
+
+        for item in under_muscles:
+            sets_needed = item["delta"]
+            n_exercises_low = max(1, int(sets_needed / 4))
+            n_exercises_high = max(1, int(sets_needed / 2))
+
+            with st.expander(
+                f"🔵 **{item['muscle']}**: {item['total']:.1f} → "
+                f"{item['target_low']} sets "
+                f"(add {item['delta']:.1f})"
+            ):
+                # Show current contributors if any
+                if item["contributors"]:
+                    st.markdown("**Current volume comes from:**")
+                    for c in item["contributors"]:
+                        role = "primary" if c["is_primary"] else "secondary"
+                        st.markdown(
+                            f"- {c['exercise']} — {c['contribution']:.1f} sets "
+                            f"({c['sets']}×{c['reps']} on {c['day']}, {role})"
+                        )
+                    st.markdown("")
+
+                # Show candidate exercises
+                if item["candidates"]:
+                    # Split into primary and secondary targeting
+                    primary_cands = [
+                        c for c in item["candidates"] if c["is_primary"]
+                    ]
+                    secondary_cands = [
+                        c for c in item["candidates"] if not c["is_primary"]
+                    ]
+
+                    if primary_cands:
+                        st.markdown(
+                            f"**Exercises that directly target {item['muscle']}:**"
+                        )
+                        for c in primary_cands[:6]:
+                            in_prog = " ✓" if c["in_program"] else ""
+                            # Show what other muscles this exercise also hits
+                            other = [
+                                t
+                                for t in c["all_targets"]
+                                if t != item["muscle"]
+                            ]
+                            also = (
+                                f" *(also: {', '.join(other[:3])})*"
+                                if other
+                                else ""
+                            )
+                            st.markdown(
+                                f"- **{c['name']}** "
+                                f"({c['equipment']}, {c['mechanic']})"
+                                f"{also}{in_prog}"
+                            )
+
+                    if secondary_cands:
+                        st.markdown(
+                            f"**Exercises that also hit {item['muscle']} "
+                            f"(as secondary):**"
+                        )
+                        for c in secondary_cands[:4]:
+                            in_prog = " ✓" if c["in_program"] else ""
+                            other = [
+                                t
+                                for t in c["all_targets"]
+                                if t != item["muscle"]
+                            ]
+                            primary_targets = (
+                                f" *(primary: {', '.join(other[:2])})*"
+                                if other
+                                else ""
+                            )
+                            st.markdown(
+                                f"- {c['name']} "
+                                f"({c['equipment']})"
+                                f"{primary_targets}{in_prog}"
+                            )
+
+                    st.info(
+                        f"💡 **Add ~{sets_needed:.0f} sets** for {item['muscle']}. "
+                        f"That's about **{n_exercises_low}–{n_exercises_high} "
+                        f"exercises** at 2–4 sets each, spread across your "
+                        f"training days."
+                    )
+                else:
+                    st.warning(
+                        f"No exercises found in library targeting "
+                        f"{item['muscle']}. Consider adding a custom exercise."
+                    )
+
+
+def compute_rebalancing_plan(
+    analysis, program, exercises, guidelines, target_days=None, locked_days=None
+):
+    """
+    Compute a precise, step-by-step rebalancing plan that brings every muscle
+    into the target range, optionally changing the number of training days.
+
+    Algorithm:
+    1. Build a muscle volume ledger (current sets per muscle).
+    2. Build an exercise contribution map (which exercises contribute what).
+    3. Phase 0 — DAY CHANGES: if target_days differ from current days,
+       redistribute exercises from removed days to remaining (unlocked) days,
+       and open up new days for additions.
+    4. Phase 1 — REMOVALS: greedily remove/reduce exercise instances that
+       contribute most to over-volume muscles (skip locked days).
+    5. Phase 2 — ADDITIONS: greedily pick exercises from the library that
+       fill the most under-volume gaps, assigning to lightest unlocked days.
+
+    Args:
+        target_days: List of day names to use (e.g. ["Monday", "Tuesday", ...]).
+                     If None, uses the current training days from the program.
+        locked_days: List of day names that must not be modified. Exercises on
+                     locked days are kept as-is; no additions or removals there.
+
+    Returns a plan dict with steps, projected volumes, and summary.
+    """
+    hyp_low = guidelines["hypertrophy"]["volume"]["practical_low"]
+    hyp_high = guidelines["hypertrophy"]["volume"]["practical_high"]
+    target_mid = (hyp_low + hyp_high) / 2
+    per_session_max = guidelines["hypertrophy"]["volume"]["per_session_max"]
+
+    # Determine current vs target training days
+    current_days = [d for d in DAYS if program.get(d, [])]
+    if target_days is None:
+        target_days = current_days if current_days else DAYS[:5]
+    if locked_days is None:
+        locked_days = []
+    locked_set = set(locked_days)
+
+    removed_days = [d for d in current_days if d not in target_days]
+    added_days = [d for d in target_days if d not in current_days]
+    # Days that the algorithm is allowed to modify
+    mutable_days = [d for d in target_days if d not in locked_set]
+
+    # --- 1. Build muscle volume ledger ---
+    muscle_volumes = {}
+    for muscle, info in analysis["hypertrophy"]["muscles"].items():
+        muscle_volumes[muscle] = info["total"]
+
+    # --- 2. Build exercise instance list (hypertrophy only) ---
+    exercise_instances = []
+    for day in DAYS:
+        for idx, entry in enumerate(program.get(day, [])):
+            if entry["reps"] <= 6:
+                continue
+
+            ex_info = get_exercise_by_name(exercises, entry["exercise"])
+            if not ex_info:
+                continue
+
+            primary = [m.title() for m in ex_info.get("primaryMuscles", [])]
+            secondary = [m.title() for m in ex_info.get("secondaryMuscles", [])]
+
+            contribs = {}
+            for m in primary:
+                contribs[m] = entry["sets"] * 1.0
+            for m in secondary:
+                contribs[m] = entry["sets"] * 0.5
+
+            exercise_instances.append(
+                {
+                    "exercise": entry["exercise"],
+                    "day": day,
+                    "day_idx": idx,
+                    "sets": entry["sets"],
+                    "reps": entry["reps"],
+                    "contribs": contribs,
+                    "primary": primary,
+                    "secondary": secondary,
+                }
+            )
+
+    # Working copy of volumes
+    projected = dict(muscle_volumes)
+    steps = []
+
+    # --- Phase 0: DAY CHANGES ---
+    # Track day load for all target days
+    day_load = {day: 0 for day in target_days}
+    for day in target_days:
+        for entry in program.get(day, []):
+            day_load[day] += entry["sets"]
+
+    # Exercises on removed days need to be redistributed or removed
+    if removed_days:
+        # Collect all exercises from removed days (both hyp and strength)
+        exercises_to_move = []
+        for day in removed_days:
+            for entry in program.get(day, []):
+                exercises_to_move.append(
+                    {
+                        "exercise": entry["exercise"],
+                        "sets": entry["sets"],
+                        "reps": entry["reps"],
+                        "from_day": day,
+                    }
+                )
+
+        # Remove all exercises from removed days
+        for day in removed_days:
+            for entry in program.get(day, []):
+                steps.append(
+                    {
+                        "type": "remove",
+                        "exercise": entry["exercise"],
+                        "day": day,
+                        "sets": entry["sets"],
+                        "reps": entry["reps"],
+                        "reason": "day_removed",
+                        "muscles_affected": {},
+                    }
+                )
+
+            # Update projected volumes for hyp exercises being removed
+            for inst in exercise_instances:
+                if inst["day"] == day:
+                    for m, c in inst["contribs"].items():
+                        projected[m] = projected.get(m, 0) - c
+
+        # Redistribute exercises to mutable target days (lightest-day-first)
+        # Sort by sets descending (place biggest exercises first for balance)
+        exercises_to_move.sort(key=lambda x: x["sets"], reverse=True)
+
+        for ex_move in exercises_to_move:
+            if not mutable_days:
+                break
+            # Find the lightest mutable target day
+            lightest_day = min(mutable_days, key=lambda d: day_load.get(d, 0))
+
+            # Check per-session limit — don't overload a day
+            if day_load.get(lightest_day, 0) + ex_move["sets"] > per_session_max * 3:
+                # Skip if day would be too loaded; the volume rebalance
+                # will handle this through normal additions later
+                continue
+
+            # Check if this exercise is already on the target day
+            # (avoid exact duplicates on same day)
+            existing = program.get(lightest_day, [])
+            already_there = any(
+                e["exercise"] == ex_move["exercise"]
+                and e["reps"] == ex_move["reps"]
+                for e in existing
+            )
+
+            steps.append(
+                {
+                    "type": "move",
+                    "exercise": ex_move["exercise"],
+                    "from_day": ex_move["from_day"],
+                    "day": lightest_day,
+                    "sets": ex_move["sets"],
+                    "reps": ex_move["reps"],
+                    "muscles_affected": {},
+                }
+            )
+
+            day_load[lightest_day] = day_load.get(lightest_day, 0) + ex_move["sets"]
+
+            # Restore projected volumes for moved hyp exercises
+            if ex_move["reps"] > 6:
+                ex_info = get_exercise_by_name(exercises, ex_move["exercise"])
+                if ex_info:
+                    primary = [m.title() for m in ex_info.get("primaryMuscles", [])]
+                    secondary = [m.title() for m in ex_info.get("secondaryMuscles", [])]
+                    for m in primary:
+                        projected[m] = projected.get(m, 0) + ex_move["sets"] * 1.0
+                    for m in secondary:
+                        projected[m] = projected.get(m, 0) + ex_move["sets"] * 0.5
+
+        # Remove the exercise instances from removed days so they're not
+        # considered in the removal phase
+        exercise_instances = [
+            inst for inst in exercise_instances if inst["day"] not in removed_days
+        ]
+
+    # --- 3. Phase 1: REMOVALS ---
+    # Find exercises whose removal would reduce over-volume muscles the most,
+    # while not making under-volume muscles worse.
+    # Only consider exercises on mutable (unlocked) days.
+    removal_candidates = [
+        inst for inst in exercise_instances if inst["day"] not in locked_set
+    ]
+    max_removal_iterations = 20
+
+    for _ in range(max_removal_iterations):
+        # Which muscles are still over?
+        over = {m: v - hyp_high for m, v in projected.items() if v > hyp_high}
+        if not over:
+            break
+
+        # Score each removable exercise: how much over-volume does it reduce?
+        best_score = -1
+        best_candidate = None
+
+        for inst in removal_candidates:
+            score = 0
+            penalty = 0
+            for muscle, contrib in inst["contribs"].items():
+                current = projected.get(muscle, 0)
+                if current > hyp_high:
+                    # Reducing an over-volume muscle is good
+                    reduction = min(contrib, current - hyp_high)
+                    score += reduction
+                elif current <= hyp_low:
+                    # Reducing an under-volume muscle is bad
+                    penalty += contrib * 2
+                elif current - contrib < hyp_low:
+                    # Would push a balanced muscle under — mild penalty
+                    penalty += (hyp_low - (current - contrib)) * 1.5
+
+            net_score = score - penalty
+            if net_score > best_score:
+                best_score = net_score
+                best_candidate = inst
+
+        if best_candidate is None or best_score <= 0:
+            break
+
+        # Can we partially reduce instead of fully removing?
+        # Check if removing fewer sets is enough
+        over_muscles_hit = [
+            m
+            for m in best_candidate["contribs"]
+            if projected.get(m, 0) > hyp_high
+        ]
+
+        if over_muscles_hit:
+            # How many sets to remove? Enough to bring the most-over muscle
+            # to target_high
+            sets_to_remove = best_candidate["sets"]  # default: remove all
+            for m in over_muscles_hit:
+                surplus = projected[m] - hyp_high
+                # This exercise contributes per-set
+                per_set = best_candidate["contribs"][m] / best_candidate["sets"]
+                if per_set > 0:
+                    needed = int(surplus / per_set + 0.5)
+                    sets_to_remove = min(sets_to_remove, needed)
+
+            sets_to_remove = max(1, min(sets_to_remove, best_candidate["sets"]))
+
+            if sets_to_remove < best_candidate["sets"]:
+                # Partial reduction
+                ratio = sets_to_remove / best_candidate["sets"]
+                for m, contrib in best_candidate["contribs"].items():
+                    projected[m] = projected.get(m, 0) - contrib * ratio
+
+                steps.append(
+                    {
+                        "type": "reduce",
+                        "exercise": best_candidate["exercise"],
+                        "day": best_candidate["day"],
+                        "from_sets": best_candidate["sets"],
+                        "to_sets": best_candidate["sets"] - sets_to_remove,
+                        "reps": best_candidate["reps"],
+                        "muscles_affected": {
+                            m: round(c * ratio, 1)
+                            for m, c in best_candidate["contribs"].items()
+                        },
+                    }
+                )
+                # Update the candidate's remaining contribution
+                best_candidate["sets"] -= sets_to_remove
+                for m in best_candidate["contribs"]:
+                    best_candidate["contribs"][m] *= 1 - ratio
+            else:
+                # Full removal
+                for m, contrib in best_candidate["contribs"].items():
+                    projected[m] = projected.get(m, 0) - contrib
+
+                steps.append(
+                    {
+                        "type": "remove",
+                        "exercise": best_candidate["exercise"],
+                        "day": best_candidate["day"],
+                        "sets": best_candidate["sets"],
+                        "reps": best_candidate["reps"],
+                        "muscles_affected": {
+                            m: round(c, 1)
+                            for m, c in best_candidate["contribs"].items()
+                        },
+                    }
+                )
+                removal_candidates.remove(best_candidate)
+
+    # --- Phase 2: ADDITIONS ---
+    # Find exercises from the library that best fill under-volume gaps,
+    # preferring exercises that cover multiple deficits at once.
+    # Assign to lightest training days.
+
+    # Refresh day load if not already set (no day changes)
+    if not removed_days and not added_days:
+        day_load = {day: 0 for day in target_days}
+        for day in target_days:
+            for entry in program.get(day, []):
+                day_load[day] += entry["sets"]
+
+    # Ensure new days have zero load
+    for day in added_days:
+        if day not in day_load:
+            day_load[day] = 0
+
+    # Only add exercises to mutable (unlocked) days
+    training_days = mutable_days if mutable_days else target_days
+
+    # Build candidate library (exercises not already heavily in program)
+    program_exercise_counts = defaultdict(int)
+    for inst in exercise_instances:
+        program_exercise_counts[inst["exercise"]] += 1
+
+    max_addition_iterations = 30
+
+    for _ in range(max_addition_iterations):
+        # Which muscles are still under?
+        under = {m: hyp_low - v for m, v in projected.items() if v < hyp_low}
+        if not under:
+            break
+
+        # Score candidate exercises from the library
+        best_score = -1
+        best_exercise = None
+        best_sets = 3  # default sets per exercise
+
+        for ex in exercises:
+            # Skip exercises with no muscle data
+            ex_primary = [m.title() for m in ex.get("primaryMuscles", [])]
+            ex_secondary = [m.title() for m in ex.get("secondaryMuscles", [])]
+            if not ex_primary:
+                continue
+
+            # Skip stretching/cardio
+            if ex.get("category") in ["stretching", "cardio"]:
+                continue
+
+            # Score: how much deficit does this exercise fill?
+            score = 0
+            penalty = 0
+            ex_muscles = {}
+
+            for m in ex_primary:
+                per_set = 1.0
+                deficit = under.get(m, 0)
+                if deficit > 0:
+                    score += min(per_set * 3, deficit)  # 3 sets worth
+                elif projected.get(m, 0) > hyp_high:
+                    penalty += per_set * 3 * 2  # would make surplus worse
+                ex_muscles[m] = per_set
+
+            for m in ex_secondary:
+                per_set = 0.5
+                deficit = under.get(m, 0)
+                if deficit > 0:
+                    score += min(per_set * 3, deficit)
+                elif projected.get(m, 0) > hyp_high:
+                    penalty += per_set * 3
+                ex_muscles[m] = per_set
+
+            # Bonus for covering multiple under-muscles
+            muscles_helped = sum(
+                1 for m in ex_primary + ex_secondary if m in under
+            )
+            score += muscles_helped * 0.5
+
+            # Slight preference for exercises not already in program
+            if program_exercise_counts[ex["name"]] > 0:
+                score *= 0.7
+
+            net_score = score - penalty
+            if net_score > best_score:
+                best_score = net_score
+                best_exercise = ex
+                # Determine optimal sets: enough to fill the biggest deficit
+                # from the primary muscles
+                primary_deficits = [
+                    under.get(m, 0) for m in ex_primary if m in under
+                ]
+                if primary_deficits:
+                    best_sets = max(2, min(4, int(max(primary_deficits) + 0.5)))
+                else:
+                    best_sets = 3
+
+        if best_exercise is None or best_score <= 0:
+            break
+
+        # Assign to the lightest training day
+        lightest_day = min(training_days, key=lambda d: day_load[d])
+
+        # Compute muscle impact
+        ex_primary = [m.title() for m in best_exercise.get("primaryMuscles", [])]
+        ex_secondary = [
+            m.title() for m in best_exercise.get("secondaryMuscles", [])
+        ]
+        muscles_affected = {}
+        for m in ex_primary:
+            added = best_sets * 1.0
+            projected[m] = projected.get(m, 0) + added
+            muscles_affected[m] = added
+        for m in ex_secondary:
+            added = best_sets * 0.5
+            projected[m] = projected.get(m, 0) + added
+            muscles_affected[m] = added
+
+        day_load[lightest_day] += best_sets
+
+        steps.append(
+            {
+                "type": "add",
+                "exercise": best_exercise["name"],
+                "day": lightest_day,
+                "sets": best_sets,
+                "reps": 10,  # default hypertrophy rep range
+                "equipment": best_exercise.get("equipment", "unknown"),
+                "mechanic": best_exercise.get("mechanic", "unknown"),
+                "muscles_affected": {
+                    m: round(v, 1) for m, v in muscles_affected.items()
+                },
+            }
+        )
+        program_exercise_counts[best_exercise["name"]] += 1
+
+    # --- Build projected comparison ---
+    comparison = []
+    for muscle in sorted(muscle_volumes.keys()):
+        current = muscle_volumes[muscle]
+        proj = projected.get(muscle, current)
+
+        if current < hyp_low:
+            current_status = "under"
+        elif current > hyp_high:
+            current_status = "over"
+        else:
+            current_status = "ok"
+
+        if proj < hyp_low:
+            proj_status = "under"
+        elif proj > hyp_high:
+            proj_status = "over"
+        else:
+            proj_status = "ok"
+
+        comparison.append(
+            {
+                "muscle": muscle,
+                "current": current,
+                "projected": round(proj, 1),
+                "change": round(proj - current, 1),
+                "current_status": current_status,
+                "projected_status": proj_status,
+            }
+        )
+
+    # Count remaining issues
+    remaining_over = sum(1 for c in comparison if c["projected_status"] == "over")
+    remaining_under = sum(
+        1 for c in comparison if c["projected_status"] == "under"
+    )
+
+    return {
+        "steps": steps,
+        "comparison": comparison,
+        "remaining_over": remaining_over,
+        "remaining_under": remaining_under,
+        "target_low": hyp_low,
+        "target_high": hyp_high,
+    }
+
+
+def render_rebalancing_plan(plan):
+    """Render the computed rebalancing plan as a step-by-step action list."""
+    if not plan or not plan.get("steps"):
+        st.info("No changes needed — program is already balanced.")
+        return
+
+    steps = plan["steps"]
+    comparison = plan["comparison"]
+    target_low = plan["target_low"]
+    target_high = plan["target_high"]
+
+    remaining = plan["remaining_over"] + plan["remaining_under"]
+    if remaining == 0:
+        st.success(
+            f"✅ This plan brings **all muscles** into the "
+            f"{target_low}–{target_high} set target range."
+        )
+    else:
+        st.warning(
+            f"⚠️ This plan resolves most imbalances but "
+            f"{remaining} muscle(s) remain outside the target range. "
+            f"Manual adjustments may be needed."
+        )
+
+    # --- Categorize steps ---
+    moves = [s for s in steps if s["type"] == "move"]
+    day_removals = [
+        s for s in steps if s["type"] == "remove" and s.get("reason") == "day_removed"
+    ]
+    volume_removals = [
+        s
+        for s in steps
+        if s["type"] in ("remove", "reduce") and s.get("reason") != "day_removed"
+    ]
+    additions = [s for s in steps if s["type"] == "add"]
+
+    step_num = 0
+
+    # Count summary
+    parts = []
+    if day_removals or moves:
+        parts.append(f"{len(moves)} move(s)")
+    if volume_removals:
+        parts.append(f"{len(volume_removals)} removal(s)/reduction(s)")
+    if additions:
+        parts.append(f"{len(additions)} addition(s)")
+    st.markdown(f"**{len(steps)} changes:** {', '.join(parts)}")
+
+    # --- Day restructuring (moves) ---
+    if day_removals or moves:
+        st.markdown("#### 📅 Day Restructuring")
+
+        # Group removals and moves by from_day
+        removed_from = set(s["day"] for s in day_removals)
+        if removed_from:
+            st.caption(f"Clearing day(s): {', '.join(sorted(removed_from))}")
+
+        for step in moves:
+            step_num += 1
+            label = (
+                f"**{step_num}. Move** {step['exercise']} "
+                f"({step['from_day']} → {step['day']}, "
+                f"{step['sets']}×{step['reps']})"
+            )
+            st.caption(label)
+
+    # --- Volume removals/reductions ---
+    if volume_removals:
+        st.markdown(
+            "#### ✂️ Volume Reductions"
+            if not (day_removals or moves)
+            else "#### ✂️ Volume Adjustments"
+        )
+
+        for step in volume_removals:
+            step_num += 1
+            if step["type"] == "remove":
+                label = (
+                    f"**{step_num}. Remove** {step['exercise']} "
+                    f"({step['day']}, {step['sets']}×{step['reps']})"
+                )
+            else:
+                label = (
+                    f"**{step_num}. Reduce** {step['exercise']} "
+                    f"({step['day']}, {step['from_sets']}×{step['reps']} "
+                    f"→ {step['to_sets']}×{step['reps']})"
+                )
+
+            with st.expander(label):
+                if step["muscles_affected"]:
+                    st.caption("Volume freed up:")
+                    for m, v in sorted(
+                        step["muscles_affected"].items(),
+                        key=lambda x: x[1],
+                        reverse=True,
+                    ):
+                        st.caption(f"  {m}: −{v:.1f} sets")
+
+    # --- Additions ---
+    if additions:
+        st.markdown("#### ➕ Add Exercises")
+
+        for step in additions:
+            step_num += 1
+            label = (
+                f"**{step_num}. Add** {step['exercise']} "
+                f"({step['day']}, {step['sets']}×{step['reps']})"
+            )
+
+            with st.expander(label):
+                st.caption(
+                    f"Equipment: {step['equipment']} · "
+                    f"Type: {step['mechanic']}"
+                )
+                st.caption("Volume added:")
+                for m, v in sorted(
+                    step["muscles_affected"].items(),
+                    key=lambda x: x[1],
+                    reverse=True,
+                ):
+                    st.caption(f"  {m}: +{v:.1f} sets")
+
+    # --- Before / After comparison ---
+    st.markdown("#### 📊 Before → After")
+
+    comp_data = []
+    for c in sorted(comparison, key=lambda x: abs(x["change"]), reverse=True):
+        before_icon = {"over": "🔴", "under": "🔵", "ok": "🟢"}[
+            c["current_status"]
+        ]
+        after_icon = {"over": "🔴", "under": "🔵", "ok": "🟢"}[
+            c["projected_status"]
+        ]
+
+        change_str = ""
+        if c["change"] > 0:
+            change_str = f"+{c['change']:.1f}"
+        elif c["change"] < 0:
+            change_str = f"{c['change']:.1f}"
+        else:
+            change_str = "—"
+
+        comp_data.append(
+            {
+                "Muscle": c["muscle"],
+                "Before": f"{before_icon} {c['current']:.1f}",
+                "After": f"{after_icon} {c['projected']:.1f}",
+                "Change": change_str,
+                "Target": f"{target_low}–{target_high}",
+            }
+        )
+
+    df = pd.DataFrame(comp_data)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+    # --- Apply button ---
+    st.markdown("---")
+    col_apply, col_spacer = st.columns([1, 2])
+    with col_apply:
+        if st.button(
+            "✅ Apply Plan to Program",
+            key="apply_rebalancing_plan",
+            type="primary",
+            use_container_width=True,
+        ):
+            applied = apply_rebalancing_plan(plan)
+            if applied:
+                st.rerun()
+
+    st.caption(
+        "This will modify your current week's program by removing/reducing "
+        "exercises and adding new ones as described above."
+    )
+
+
+def apply_rebalancing_plan(plan):
+    """
+    Apply the rebalancing plan to the current program week.
+
+    Processes steps in order:
+    1. Removals — delete exercise entries from the day (including day-removed)
+    2. Moves — add exercises to their new target day
+    3. Reductions — reduce the sets count on existing entries
+    4. Additions — append new exercise entries to the specified days
+
+    Returns True if changes were made.
+    """
+    if not plan or not plan.get("steps"):
+        return False
+
+    week_idx = st.session_state.current_week
+    week_days = st.session_state.program_weeks[week_idx]["days"]
+
+    changes_made = 0
+
+    # Categorize steps
+    removals_by_day = defaultdict(list)
+    reductions_by_day = defaultdict(list)
+    moves = []
+    additions = []
+
+    for step in plan["steps"]:
+        if step["type"] == "remove":
+            removals_by_day[step["day"]].append(step)
+        elif step["type"] == "reduce":
+            reductions_by_day[step["day"]].append(step)
+        elif step["type"] == "move":
+            moves.append(step)
+        elif step["type"] == "add":
+            additions.append(step)
+
+    # 1. Apply removals (including day_removed)
+    # For day_removed, clear the entire day; for volume removals match by name
+    cleared_days = set()
+    for day, day_removals in removals_by_day.items():
+        day_exercises = week_days.get(day, [])
+        # Check if all removals on this day are day_removed type
+        if all(r.get("reason") == "day_removed" for r in day_removals):
+            # Clear the whole day at once
+            week_days[day] = []
+            changes_made += len(day_removals)
+            cleared_days.add(day)
+        else:
+            for removal in day_removals:
+                if removal.get("reason") == "day_removed":
+                    continue  # handled separately
+                for i, entry in enumerate(day_exercises):
+                    if (
+                        entry["exercise"] == removal["exercise"]
+                        and entry["reps"] == removal["reps"]
+                    ):
+                        day_exercises.pop(i)
+                        changes_made += 1
+                        break
+
+    # 2. Apply moves (add exercise to new day)
+    for move in moves:
+        target_day = move["day"]
+        if target_day not in week_days:
+            week_days[target_day] = []
+
+        week_days[target_day].append(
+            {
+                "exercise": move["exercise"],
+                "sets": move["sets"],
+                "reps": move["reps"],
+            }
+        )
+        changes_made += 1
+
+    # 3. Apply reductions
+    for day, day_reductions in reductions_by_day.items():
+        day_exercises = week_days.get(day, [])
+        for reduction in day_reductions:
+            for entry in day_exercises:
+                if (
+                    entry["exercise"] == reduction["exercise"]
+                    and entry["reps"] == reduction["reps"]
+                    and entry["sets"] == reduction["from_sets"]
+                ):
+                    entry["sets"] = reduction["to_sets"]
+                    changes_made += 1
+                    break
+
+    # Apply additions
+    for addition in additions:
+        day = addition["day"]
+        if day not in week_days:
+            week_days[day] = []
+
+        week_days[day].append(
+            {
+                "exercise": addition["exercise"],
+                "sets": addition["sets"],
+                "reps": addition["reps"],
+            }
+        )
+        changes_made += 1
+
+    if changes_made > 0:
+        st.toast(
+            f"✅ Applied {changes_made} changes to your program!",
+            icon="✅",
+        )
+
+    return changes_made > 0
+
+
 def render_program_designer(program, exercises, hyp_sets, str_sets):
     """Render a program designer helper based on guidelines."""
     st.header("🎨 Program Designer")
@@ -4100,6 +5203,100 @@ def render_program_analysis(program, exercises, hyp_sets, str_sets):
                 render_muscle_drilldown(
                     muscle, info, program, exercises, key_prefix="analysis_hyp"
                 )
+
+            # Rebalancing suggestions
+            rebalancing = get_rebalancing_suggestions(
+                analysis, program, exercises, guidelines
+            )
+            render_rebalancing_suggestions(rebalancing, guidelines)
+
+            # Auto-rebalancing plan — with training day selection
+            st.markdown("---")
+            st.markdown("### 🎯 Auto-Rebalancing Plan")
+
+            # Detect current training days
+            current_training_days = [
+                d for d in DAYS if program.get(d, [])
+            ]
+
+            st.caption(
+                f"Current program uses **{len(current_training_days)}** "
+                f"training day(s): {', '.join(current_training_days)}"
+            )
+
+            col_days, col_lock = st.columns(2)
+
+            with col_days:
+                # Day selector
+                selected_days = st.multiselect(
+                    "Training days for rebalanced program",
+                    options=DAYS,
+                    default=current_training_days,
+                    key="rebalance_training_days",
+                    help=(
+                        "Add or remove days to change the program structure. "
+                        "The plan will redistribute exercises accordingly, "
+                        "keeping per-session volume reasonable and spreading "
+                        "muscles across multiple days for frequency."
+                    ),
+                )
+
+            with col_lock:
+                # Locked days selector — only show days that are in selected_days
+                # and already have exercises (new empty days can't be locked)
+                lockable_days = [
+                    d for d in selected_days if d in current_training_days
+                ]
+                locked_days = st.multiselect(
+                    "Lock days (no changes allowed)",
+                    options=lockable_days,
+                    default=[],
+                    key="rebalance_locked_days",
+                    help=(
+                        "Locked days are kept exactly as-is — no exercises "
+                        "will be added, removed, or moved on these days. "
+                        "The rebalancer will only modify unlocked days."
+                    ),
+                )
+
+            if not selected_days:
+                st.warning("Select at least one training day.")
+            else:
+                # Check that at least one day is unlocked
+                unlocked_days = [
+                    d for d in selected_days if d not in locked_days
+                ]
+                if not unlocked_days:
+                    st.warning(
+                        "All selected days are locked — unlock at least one "
+                        "day so the rebalancer can make changes."
+                    )
+                else:
+                    day_diff = len(selected_days) - len(current_training_days)
+                    msgs = []
+                    if day_diff > 0:
+                        msgs.append(
+                            f"Adding {day_diff} day(s) — exercises spread "
+                            f"across more days for better recovery"
+                        )
+                    elif day_diff < 0:
+                        msgs.append(
+                            f"Removing {abs(day_diff)} day(s) — exercises "
+                            f"from removed days redistributed"
+                        )
+                    if locked_days:
+                        msgs.append(
+                            f"Keeping {', '.join(locked_days)} unchanged"
+                        )
+                    if msgs:
+                        st.info("📅 " + ". ".join(msgs) + ".")
+
+                    plan = compute_rebalancing_plan(
+                        analysis, program, exercises, guidelines,
+                        target_days=selected_days,
+                        locked_days=locked_days,
+                    )
+                    render_rebalancing_plan(plan)
 
         else:
             st.info("Add exercises with >6 reps to see hypertrophy analysis")
@@ -4725,16 +5922,18 @@ def render_muscle_balance(hyp_sets, exercises):
         st.info("Add exercises with >6 reps to see muscle balance.")
         return
 
-    # Calculate push vs pull (using free-exercise-db muscle names, title-cased)
+    # Calculate push vs pull (using muscle names as they appear in data, title-cased)
     push_muscles = {
         "Chest",
-        "Shoulders",
+        "Front Deltoids",
+        "Side Deltoids",
         "Triceps",
     }
     pull_muscles = {
         "Lats",
         "Middle Back",
         "Lower Back",
+        "Rear Deltoids",
         "Traps",
         "Biceps",
         "Forearms",
@@ -4744,7 +5943,7 @@ def render_muscle_balance(hyp_sets, exercises):
     pull_total = sum(sets for m, sets in muscle_totals.items() if m in pull_muscles)
 
     # Calculate upper vs lower
-    upper_muscles = push_muscles | pull_muscles | {"Abdominals", "Neck"}
+    upper_muscles = push_muscles | pull_muscles | {"Rotator Cuff", "Abdominals", "Neck"}
     lower_muscles = {
         "Quadriceps",
         "Glutes",
@@ -4789,28 +5988,32 @@ def render_muscle_balance(hyp_sets, exercises):
     with col1:
         # Group into categories
         categories = {
-            "Chest": sum(s for m, s in muscle_totals.items() if "Pectoral" in m),
+            "Chest": muscle_totals.get("Chest", 0),
             "Back": sum(
-                s
-                for m, s in muscle_totals.items()
-                if m in {"Latissimus Dorsi", "Rhomboids", "Trapezius"}
+                muscle_totals.get(m, 0)
+                for m in ["Lats", "Middle Back", "Lower Back", "Traps"]
             ),
-            "Shoulders": sum(s for m, s in muscle_totals.items() if "Deltoid" in m),
+            "Shoulders": sum(
+                muscle_totals.get(m, 0)
+                for m in [
+                    "Front Deltoids",
+                    "Side Deltoids",
+                    "Rear Deltoids",
+                    "Rotator Cuff",
+                ]
+            ),
             "Arms": sum(
-                s
-                for m, s in muscle_totals.items()
-                if m in {"Biceps Brachii", "Triceps Brachii", "Brachialis"}
+                muscle_totals.get(m, 0)
+                for m in ["Biceps", "Triceps", "Forearms"]
             ),
             "Quads": muscle_totals.get("Quadriceps", 0),
             "Glutes/Hams": sum(
-                s
-                for m, s in muscle_totals.items()
-                if m in {"Gluteus Maximus", "Hamstrings", "Glutes"}
+                muscle_totals.get(m, 0)
+                for m in ["Glutes", "Hamstrings"]
             ),
             "Core": sum(
-                s
-                for m, s in muscle_totals.items()
-                if m in {"Core", "Obliques", "Rectus Abdominis"}
+                muscle_totals.get(m, 0)
+                for m in ["Abdominals", "Lower Back"]
             ),
         }
         categories = {k: v for k, v in categories.items() if v > 0}
